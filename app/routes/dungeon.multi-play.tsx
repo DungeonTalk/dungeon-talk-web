@@ -1,8 +1,8 @@
 import { lazy, Suspense } from 'react'
 
-const MobileChatInterface = lazy(() => import('./mobile-chat-interface'))
+const MobileChatInterface = lazy(() => import('../components/mobile-chat-interface'))
 
-export default function DynamicMobileChat() {
+export default function MultiPlayPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">

@@ -149,7 +149,11 @@ export default function MobileChatInterface() {
               variant="ghost"
               size="sm"
               className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-300 hover:text-white"
-              onClick={() => window.history.back()}
+              onClick={() => {
+                const searchParams = new URLSearchParams(window.location.search);
+                const world = searchParams.get('world') || '';
+                window.location.href = `/dungeon/mode-selection?world=${encodeURIComponent(world)}`;
+              }}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
