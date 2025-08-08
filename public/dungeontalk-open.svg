@@ -1,0 +1,62 @@
+<svg width="800" height="200" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#334155;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#475569;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 배경 -->
+  <rect width="800" height="200" fill="url(#bgGradient)" rx="20"/>
+  
+  <!-- 장식적 테두리 -->
+  <rect x="10" y="10" width="780" height="180" fill="none" stroke="#fbbf24" stroke-width="2" rx="15" opacity="0.6"/>
+  
+  <!-- 중앙 장식 원 -->
+  <circle cx="400" cy="100" r="60" fill="none" stroke="#fbbf24" stroke-width="3" opacity="0.4"/>
+  <circle cx="400" cy="100" r="45" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.6"/>
+  
+  <!-- 메인 텍스트 -->
+  <text x="400" y="85" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="url(#textGradient)" filter="url(#glow)">
+    던전톡
+  </text>
+  
+  <!-- 서브 텍스트 -->
+  <text x="400" y="125" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#fbbf24">
+    오픈!
+  </text>
+  
+  <!-- 장식 요소들 -->
+  <g opacity="0.7">
+    <!-- 왼쪽 장식 -->
+    <circle cx="150" cy="80" r="8" fill="#fbbf24"/>
+    <circle cx="150" cy="120" r="6" fill="#f59e0b"/>
+    <circle cx="180" cy="100" r="5" fill="#d97706"/>
+    
+    <!-- 오른쪽 장식 -->
+    <circle cx="650" cy="80" r="8" fill="#fbbf24"/>
+    <circle cx="650" cy="120" r="6" fill="#f59e0b"/>
+    <circle cx="620" cy="100" r="5" fill="#d97706"/>
+  </g>
+  
+  <!-- 작은 별들 -->
+  <g fill="#fbbf24" opacity="0.8">
+    <polygon points="100,50 102,58 110,58 104,64 106,72 100,68 94,72 96,64 90,58 98,58" transform="scale(0.5)"/>
+    <polygon points="700,50 702,58 710,58 704,64 706,72 700,68 694,72 696,64 690,58 698,58" transform="scale(0.5)"/>
+    <polygon points="120,160 122,168 130,168 124,174 126,182 120,178 114,182 116,174 110,168 118,168" transform="scale(0.4)"/>
+    <polygon points="680,160 682,168 690,168 684,174 686,182 680,178 674,182 676,174 670,168 678,168" transform="scale(0.4)"/>
+  </g>
+</svg>
