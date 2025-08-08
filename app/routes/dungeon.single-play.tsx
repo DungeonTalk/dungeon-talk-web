@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { Button } from '../components/ui/button'
-import { ArrowLeft } from 'lucide-react'
 
 export default function SinglePlayPage() {
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const selectedWorld = searchParams.get('world') || ''
   const [isChatActive, setIsChatActive] = useState(false)
@@ -13,10 +11,6 @@ export default function SinglePlayPage() {
     { id: 2, text: "앞에 보물상자가 보입니다.", sender: "내레이터" }
   ])
   const [currentMessage, setCurrentMessage] = useState('')
-
-  const handleBack = () => {
-    navigate(`/dungeon/mode-selection?world=${encodeURIComponent(selectedWorld)}`)
-  }
 
   const handleSendMessage = () => {
     if (currentMessage.trim()) {
@@ -30,25 +24,8 @@ export default function SinglePlayPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-4">
-      <div className="max-w-md mx-auto bg-slate-800 rounded-3xl shadow-lg overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 2rem)' }}>
-        {/* Header */}
-        <div className="bg-slate-800 p-4 border-b border-slate-700 relative flex-shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-300 hover:text-white"
-            onClick={handleBack}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="text-center">
-            <span className="text-lg font-semibold text-white">플레이 화면</span>
-            <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-slate-400">상급</span>
-          </div>
-        </div>
-
-        {/* Chat Tabs */}
+    <div className="flex flex-col h-full">
+        {/* 채팅 탭 */}
         <div className="bg-slate-800 px-4 pb-4 flex-shrink-0">
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -66,7 +43,7 @@ export default function SinglePlayPage() {
           </div>
         </div>
 
-        {/* Main Content Area - Chat */}
+        {/* 메인 콘텐츠 영역 - 채팅 */}
         <div className="flex-1 px-4 pb-4 overflow-hidden">
           <div className="bg-slate-800 rounded-lg h-full p-4 flex flex-col relative">
             <div className="flex-1 overflow-y-auto space-y-4 mb-4">
@@ -99,7 +76,7 @@ export default function SinglePlayPage() {
               ))}
             </div>
           
-            {/* Heart buttons on the right */}
+            {/* 오른쪽 하트 버튼 */}
             <div className="absolute right-4 top-4 space-y-2">
               <Button
                 size="sm"
@@ -116,7 +93,7 @@ export default function SinglePlayPage() {
               </Button>
             </div>
           
-            {/* Chat Input */}
+            {/* 채팅 입력 */}
             {isChatActive && (
               <div className="flex gap-2 flex-shrink-0">
                 <input
@@ -136,7 +113,7 @@ export default function SinglePlayPage() {
           </div>
         </div>
 
-        {/* Bottom Interface */}
+        {/* 하단 인터페이스 */}
         <div className="bg-slate-800 p-4 flex justify-between items-center flex-shrink-0">
           <Button
             variant={isChatActive ? "default" : "outline"}
@@ -151,7 +128,7 @@ export default function SinglePlayPage() {
             <div className="text-xs">채팅</div>
           </Button>
         
-          {/* Health/Status bars */}
+          {/* 체력/상태 바 */}
           <div className="flex flex-col items-center space-y-1">
             <div className="flex items-center space-x-2">
               <span className="text-red-500">♥</span>
@@ -172,7 +149,6 @@ export default function SinglePlayPage() {
             <div className="text-xs">가방</div>
           </Button>
         </div>
-      </div>
     </div>
   )
 }

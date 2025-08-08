@@ -11,22 +11,14 @@ export default function DungeonMainPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-4">
-      <div className="max-w-md mx-auto bg-slate-800 rounded-3xl shadow-lg overflow-hidden">
-        {/* Header */}
-        <div className="bg-slate-800 p-6 text-center border-b border-slate-700">
-          <h1 className="text-2xl font-bold text-white">Dungeon Talk</h1>
-        </div>
-
-        {/* Character Info */}
-        <div className="p-6">
+    <div className="p-6">
           <Card className="mb-6 bg-slate-800 border border-slate-700">
             <CardContent className="p-4 text-center">
               <p className="text-slate-300">베니(이벤트, 공지, 설명 등)</p>
             </CardContent>
           </Card>
 
-          {/* Stats */}
+          {/* 스탯 */}
           <div className="bg-slate-700 rounded-lg p-4 mb-6">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -63,7 +55,7 @@ export default function DungeonMainPage() {
             </div>
           </div>
 
-          {/* World Selection */}
+          {/* 월드 선택 */}
           <div className="text-center mb-4">
             <Button 
               variant="outline" 
@@ -101,8 +93,6 @@ export default function DungeonMainPage() {
           <div className="text-right mt-4">
             <span className="text-sm text-slate-400">더보기 →</span>
           </div>
-        </div>
-      </div>
     </div>
   )
 }

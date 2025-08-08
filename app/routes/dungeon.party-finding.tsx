@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
-import { ArrowLeft, X } from 'lucide-react'
+import { X } from 'lucide-react'
 
 export default function PartyFindingPage() {
   const navigate = useNavigate()
@@ -20,7 +20,7 @@ export default function PartyFindingPage() {
           setIsPartyComplete(true)
           clearInterval(interval)
           setTimeout(() => {
-            navigate(`/dungeon/multi-play?world=${encodeURIComponent(selectedWorld)}`)
+            navigate(`/dungeon/chat-demo?world=${encodeURIComponent(selectedWorld)}`)
           }, 2000)
           return prev
         }
@@ -30,32 +30,12 @@ export default function PartyFindingPage() {
     return () => clearInterval(interval)
   }, [navigate, selectedWorld])
 
-  const handleBack = () => {
-    navigate(`/dungeon/mode-selection?world=${encodeURIComponent(selectedWorld)}`)
-  }
-
   const handleCancel = () => {
     navigate(`/dungeon/mode-selection?world=${encodeURIComponent(selectedWorld)}`)
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-4">
-      <div className="max-w-md mx-auto bg-slate-800 rounded-3xl shadow-lg overflow-hidden">
-        {/* Header */}
-        <div className="bg-slate-800 p-6 text-center border-b border-slate-700 relative">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-300 hover:text-white"
-            onClick={handleBack}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-xl font-bold text-white">멀티</h1>
-        </div>
-
-        {/* Party Finding */}
-        <div className="p-8">
+    <div className="p-8">
           <Card className="h-80 flex flex-col items-center justify-center bg-slate-800 border border-slate-700">
             <CardContent className="text-center p-8">
               <div className="mb-8">
@@ -83,8 +63,6 @@ export default function PartyFindingPage() {
               </Button>
             </CardContent>
           </Card>
-        </div>
-      </div>
     </div>
   )
 }
