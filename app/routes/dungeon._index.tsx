@@ -2,10 +2,41 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
+import { Plus, Minus } from 'lucide-react'
+
+interface Stat {
+  base: number
+  bonus: number
+  total: number
+}
 
 export default function DungeonMainPage() {
   const navigate = useNavigate()
   
+  // 능력치 상태 관리
+  const [stats, setStats] = useState<Record<string, Stat>>({
+    strength: { base: 10, bonus: 0, total: 10 },
+    wisdom: { base: 10, bonus: 0, total: 10 },
+    willpower: { base: 10, bonus: 0, total: 10 },
+    agility: { base: 10, bonus: 0, total: 10 },
+    intelligence: { base: 10, bonus: 0, total: 10 },
+    luck: { base: 10, bonus: 0, total: 10 }
+  })
+
+  // 능력치 수정 함수
+  const modifyStat = (statName: string, amount: number) => {
+    setStats(prev => {
+      const newStats = { ...prev }
+      const newBonus = Math.max(0, newStats[statName].bonus + amount)
+      newStats[statName] = {
+        ...newStats[statName],
+        bonus: newBonus,
+        total: newStats[statName].base + newBonus
+      }
+      return newStats
+    })
+  }
+
   const handleWorldSelect = (worldName: string) => {
     navigate(`/dungeon/mode-selection?world=${encodeURIComponent(worldName)}`)
   }
@@ -75,31 +106,58 @@ export default function DungeonMainPage() {
             
             {/* 능력치 */}
             <div className="grid grid-cols-3 gap-2">
-              <div className="text-center p-2 bg-slate-600/50 rounded">
-                <div className="text-slate-300 text-xs">힘</div>
-                <div className="font-bold text-white">10</div>
-              </div>
-              <div className="text-center p-2 bg-slate-600/50 rounded">
-                <div className="text-slate-300 text-xs">지혜</div>
-                <div className="font-bold text-white">10</div>
-              </div>
-              <div className="text-center p-2 bg-slate-600/50 rounded">
-                <div className="text-slate-300 text-xs">의지</div>
-                <div className="font-bold text-white">10</div>
-              </div>
-              <div className="text-center p-2 bg-slate-600/50 rounded">
-                <div className="text-slate-300 text-xs">민첩</div>
-                <div className="font-bold text-white">10</div>
-              </div>
-              <div className="text-center p-2 bg-slate-600/50 rounded">
-                <div className="text-slate-300 text-xs">지능</div>
-                <div className="font-bold text-white">10</div>
-              </div>
-              <div className="text-center p-2 bg-slate-600/50 rounded">
-                <div className="text-slate-300 text-xs">운</div>
-                <div className="font-bold text-white">10</div>
-              </div>
+              {Object.entries(stats).map(([key, stat]) => {
+                const statNames = {
+                  strength: '힘',
+                  wisdom: '지혜',
+                  willpower: '의지',
+                  agility: '민첩',
+                  intelligence: '지능',
+                  luck: '운'
+                }
+                
+                return (
+                  <div key={key} className="text-center p-2 bg-slate-600/50 rounded">
+                    <div className="text-slate-300 text-xs">{statNames[key as keyof typeof statNames]}</div>
+                    <div className="font-bold text-white mb-1">{stat.total}</div>
+                    {stat.bonus > 0 && (
+                      <div className="text-green-400 text-xs mb-1">+{stat.bonus}</div>
+                    )}
+                    <div className="flex justify-center space-x-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 w-6 p-0 text-xs border-slate-500 hover:bg-slate-600"
+                        onClick={() => modifyStat(key, -1)}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 w-6 p-0 text-xs border-slate-500 hover:bg-slate-600"
+                        onClick={() => modifyStat(key, 1)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
+
+            {/* 추가 능력치 요약 */}
+            {Object.values(stats).some(stat => stat.bonus > 0) && (
+              <>
+                <div className="border-t border-slate-600 mt-3 mb-2"></div>
+                <div className="text-center">
+                  <div className="text-slate-300 text-xs mb-1">추가 능력치</div>
+                  <div className="text-green-400 text-sm font-medium">
+                    총 +{Object.values(stats).reduce((sum, stat) => sum + stat.bonus, 0)} 포인트
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* 월드 선택 */}

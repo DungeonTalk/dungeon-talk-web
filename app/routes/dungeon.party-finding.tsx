@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { X } from 'lucide-react'
+import LoadingVideo from '@/components/loading-video'
 
 export default function PartyFindingPage() {
   const navigate = useNavigate()
@@ -10,6 +11,7 @@ export default function PartyFindingPage() {
   const selectedWorld = searchParams.get('world') || ''
   const [partyCount, setPartyCount] = useState(1)
   const [isPartyComplete, setIsPartyComplete] = useState(false)
+  const [showLoading, setShowLoading] = useState(false)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -19,9 +21,12 @@ export default function PartyFindingPage() {
         } else {
           setIsPartyComplete(true)
           clearInterval(interval)
+          // 3/3 상태에서 바로 로딩 화면 표시
+          setShowLoading(true)
+          // 3초 후 채팅 화면으로 이동
           setTimeout(() => {
             navigate(`/dungeon/chat-demo?world=${encodeURIComponent(selectedWorld)}`)
-          }, 2000)
+          }, 3000)
           return prev
         }
       })
@@ -32,6 +37,13 @@ export default function PartyFindingPage() {
 
   const handleCancel = () => {
     navigate(`/dungeon/mode-selection?world=${encodeURIComponent(selectedWorld)}`)
+  }
+
+  // 로딩 화면 표시
+  if (showLoading) {
+    return (
+      <LoadingVideo message="던전에 입장 중..." />
+    )
   }
 
   return (
@@ -66,3 +78,5 @@ export default function PartyFindingPage() {
     </div>
   )
 }
+
+
