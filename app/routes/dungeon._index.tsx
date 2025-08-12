@@ -23,19 +23,44 @@ export default function DungeonMainPage() {
     luck: { base: 10, bonus: 0, total: 10 }
   })
 
-  // 능력치 수정 함수
+  // 추가 포인트 총량 (필요 시 조정 또는 서버 값 연동)
+  const [availableBonusPoints] = useState<number>(5)
+
+  // 능력치 수정 함수 (+/- 제한 포함)
   const modifyStat = (statName: string, amount: number) => {
-    setStats(prev => {
-      const newStats = { ...prev }
-      const newBonus = Math.max(0, newStats[statName].bonus + amount)
-      newStats[statName] = {
-        ...newStats[statName],
-        bonus: newBonus,
-        total: newStats[statName].base + newBonus
+    if (amount === 0) return
+
+    setStats(prevStats => {
+      const current = prevStats[statName]
+      if (!current) return prevStats
+
+      const totalAllocated = Object.values(prevStats).reduce((sum, s) => sum + s.bonus, 0)
+
+      // 증가: 남은 포인트가 없으면 불가
+      if (amount > 0 && totalAllocated >= availableBonusPoints) {
+        return prevStats
       }
-      return newStats
+
+      // 감소: 해당 스탯에 할당된 보너스가 없으면 불가
+      if (amount < 0 && current.bonus <= 0) {
+        return prevStats
+      }
+
+      const newBonus = Math.max(0, current.bonus + amount)
+      const updated: Record<string, Stat> = {
+        ...prevStats,
+        [statName]: {
+          ...current,
+          bonus: newBonus,
+          total: current.base + newBonus,
+        },
+      }
+      return updated
     })
   }
+
+  const totalAllocated = Object.values(stats).reduce((sum, stat) => sum + stat.bonus, 0)
+  const remainingBonusPoints = availableBonusPoints - totalAllocated
 
   const handleWorldSelect = (worldName: string) => {
     navigate(`/dungeon/mode-selection?world=${encodeURIComponent(worldName)}`)
@@ -128,6 +153,7 @@ export default function DungeonMainPage() {
                         size="sm"
                         variant="outline"
                         className="h-6 w-6 p-0 text-xs border-slate-500 hover:bg-slate-600"
+                         disabled={stat.bonus <= 0}
                         onClick={() => modifyStat(key, -1)}
                       >
                         <Minus className="h-3 w-3" />
@@ -136,6 +162,7 @@ export default function DungeonMainPage() {
                         size="sm"
                         variant="outline"
                         className="h-6 w-6 p-0 text-xs border-slate-500 hover:bg-slate-600"
+                         disabled={remainingBonusPoints <= 0}
                         onClick={() => modifyStat(key, 1)}
                       >
                         <Plus className="h-3 w-3" />
