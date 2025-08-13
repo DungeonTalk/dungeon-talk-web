@@ -12,6 +12,7 @@ export default function Tooltip({ html, children, className = '', offset = 10 }:
   const tooltipElementRef = useRef<HTMLDivElement | null>(null);
 
   const showTooltip = (e: React.MouseEvent) => {
+    if (typeof document === 'undefined') return;
     const existingTooltip = document.querySelector('.tooltip') as HTMLDivElement | null;
     if (existingTooltip) existingTooltip.remove();
 
@@ -27,7 +28,9 @@ export default function Tooltip({ html, children, className = '', offset = 10 }:
     tooltip.style.top = `${rect.top - offset}px`;
     tooltip.style.transform = 'translateX(-50%) translateY(-100%)';
 
-    document.body.appendChild(tooltip);
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.appendChild(tooltip);
+    }
     tooltipElementRef.current = tooltip;
   };
 
@@ -41,7 +44,7 @@ export default function Tooltip({ html, children, className = '', offset = 10 }:
   useEffect(() => {
     return () => {
       if (tooltipElementRef.current) {
-        tooltipElementRef.current.remove();
+        try { tooltipElementRef.current.remove(); } catch {}
       }
     };
   }, []);

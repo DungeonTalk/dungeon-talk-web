@@ -26,12 +26,13 @@ export default function DungeonLayout() {
   }
   
   const isMainPage = location.pathname === '/dungeon' || location.pathname === '/dungeon/'
+  const isWebChat = location.pathname.includes('/dungeon/chat-demo')
   
   return (
-    <div className="h-dvh p-4 flex items-center justify-center">
-      <div className="w-full max-w-md h-full bg-slate-800 rounded-3xl shadow-lg overflow-hidden grid grid-rows-[auto_1fr]">
-        {/* 헤더 */}
-        {!location.pathname.includes('/dungeon/single-play') && !location.pathname.includes('/dungeon/chat-demo') && !location.pathname.includes('/dungeon/multi-play') && (
+    <div className={`h-dvh ${isWebChat ? 'p-0' : 'p-4'} flex ${isWebChat ? 'items-stretch justify-stretch' : 'items-center justify-center'}`}>
+      <div className={`${isWebChat ? 'w-full h-full bg-transparent rounded-none shadow-none overflow-visible' : 'w-full max-w-md h-full bg-slate-800 rounded-3xl shadow-lg overflow-hidden grid grid-rows-[auto_1fr]'}`}>
+		{/* 헤더 */}
+		{!location.pathname.includes('/dungeon/single-play') && !location.pathname.includes('/dungeon/chat-demo') && !location.pathname.includes('/dungeon/multi-play') && !location.pathname.includes('/dungeon/party-finding') && (
           <header className="bg-slate-800 p-6 text-center border-b border-slate-700 relative">
             {!isMainPage && (
               <Button
@@ -50,7 +51,7 @@ export default function DungeonLayout() {
         )}
         
         {/* 페이지 콘텐츠 */}
-        <main className="overflow-auto scrollbar-hide">
+        <main className={`${isWebChat ? 'h-full' : ''} overflow-auto scrollbar-hide`}>
           <Outlet />
         </main>
       </div>

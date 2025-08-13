@@ -1,31 +1,15 @@
-import { useRef, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router'
 import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { ScrollArea } from '../components/ui/scroll-area'
-import { Send, X } from 'lucide-react'
-import { motion, useMotionValue, useTransform } from 'framer-motion'
-import type { PanInfo } from 'framer-motion'
+import { X } from 'lucide-react'
 import Tooltip from "@/components/tooltip";
 import LoadingVideo from "@/components/loading-video";
 
-interface ChatMessage {
-  id: number
-  text: string
-  sender: string
-  type: 'main' | 'party'
-  timestamp: string
-}
-
 export default function SinglePlayPage() {
-  const [activeTab, setActiveTab] = useState<'main' | 'party'>('main')
-  const [currentMessage, setCurrentMessage] = useState('')
   const [showExitModal, setShowExitModal] = useState(false)
-  const [showClearModal, setShowClearModal] = useState(false)
   const [showInventoryModal, setShowInventoryModal] = useState(false)
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [loadingPhase, setLoadingPhase] = useState<'transition' | 'complete'>('transition')
-  const inputRef = useRef<HTMLInputElement>(null)
   const [searchParams] = useSearchParams()
   const selectedWorld = searchParams.get('world') || '던전 게임'
   const navigate = useNavigate()
@@ -55,18 +39,6 @@ export default function SinglePlayPage() {
     { id: 6, name: '빈 슬롯', icon: '', effect: '', cooldown: '', mana: '', description: '아직 습득하지 못한 스킬 슬롯입니다.' }
   ]
 
-  // 실시간 애니메이션을 위한 motion values
-  const x = useMotionValue(0)
-  const chatTypeOpacity = useTransform(x, [-50, 0], [0, 1])
-  const chatTypeX = useTransform(x, [-50, 0], [-20, 0])
-  const mainDotOpacity = useTransform(x, [-50, 0], [0.3, 1])
-  const partyDotOpacity = useTransform(x, [-50, 0], [1, 0.3])
-
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 1, text: '안녕하세요!', sender: '시스템', type: 'main', timestamp: '14:30' },
-    { id: 2, text: '던전에 오신 것을 환영합니다!', sender: '시스템', type: 'main', timestamp: '14:31' },
-  ])
-
   // 로딩 효과
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -75,56 +47,6 @@ export default function SinglePlayPage() {
 
     return () => clearTimeout(timer)
   }, [])
-
-  const filtered = messages.filter(m => m.type === activeTab)
-
-  // 디버깅용 로그
-  console.log('Current activeTab:', activeTab)
-  console.log('All messages:', messages)
-  console.log('Filtered messages:', filtered)
-  console.log('Main messages:', messages.filter(msg => msg.type === 'main'))
-  console.log('Party messages:', messages.filter(msg => msg.type === 'party'))
-
-  const sendMessage = () => {
-    const value = currentMessage.trim()
-    if (!value) return
-    
-    const newMessage = {
-      id: Date.now(),
-      text: value,
-      sender: '나',
-      type: activeTab,
-      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-    }
-    
-    setMessages(prev => {
-      const newMessages = prev.concat(newMessage)
-      
-      // 10개 메시지 달성 시 던전 클리어 체크
-      if (newMessages.length >= 10) {
-        setTimeout(() => {
-          setShowClearModal(true)
-        }, 500)
-      }
-      
-      return newMessages
-    })
-    
-    setCurrentMessage('')
-    inputRef.current?.focus()
-  }
-
-  const handleDragEnd = (event: any, info: PanInfo) => {
-    const threshold = 50
-    if (info.offset.x < -threshold && activeTab === 'main') {
-      setActiveTab('party')
-    } else if (info.offset.x > threshold && activeTab === 'party') {
-      setActiveTab('main')
-    }
-    
-    // 드래그 후 위치 리셋
-    x.set(0)
-  }
 
   const handleExit = () => {
     setShowExitModal(true)
@@ -152,7 +74,7 @@ export default function SinglePlayPage() {
               {selectedWorld || '던전 게임'}
             </div>
             <div className="text-slate-400 text-sm mt-1">
-              {activeTab === 'main' ? '메인 채팅' : '메모장'}
+              싱글 플레이
             </div>
           </div>
           <Button
@@ -165,115 +87,16 @@ export default function SinglePlayPage() {
           </Button>
         </div>
 
-        {/* 메시지 영역 */}
-        <div className="flex-1 overflow-hidden relative min-h-0">
-          <motion.div
-            className="absolute inset-0 flex cursor-grab active:cursor-grabbing select-none"
-            animate={{ x: activeTab === 'main' ? '0%' : '-50%' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            drag="x"
-            dragElastic={0.1}
-            dragConstraints={{ left: -50, right: 0 }}
-            dragTransition={{ bounceStiffness: 800, bounceDamping: 30 }}
-            onDragEnd={handleDragEnd}
-            style={{ width: '200%', touchAction: 'none' }}
-            whileDrag={{ scale: 0.98 }}
-          >
-            {/* 메인 채팅 */}
-            <div className="w-1/2 flex-shrink-0 p-3 relative bg-slate-800">
-              {/* 오른쪽 스와이프 힌트 */}
-              <div className="absolute right-0 top-0 bottom-0 w-2 bg-slate-400/60 rounded-l-full transition-all duration-300 hover:w-3 active:w-4 z-10" />
-              
-              <div className="text-white text-xs mb-2">메인 채팅 ({messages.filter(msg => msg.type === 'main').length}개 메시지)</div>
-              <div className="h-full overflow-y-auto">
-                <div className="space-y-3">
-                  {messages.filter(msg => msg.type === 'main').map(message => (
-                    <div key={message.id} className={`${message.sender === '나' ? 'text-right' : 'text-left'}`}>
-                      {message.sender === '나' ? (
-                        // 내 메시지 (오른쪽)
-                        <div className="flex flex-col items-end">
-                          <div className="text-slate-400 text-xs mb-1">{message.timestamp}</div>
-                          <div className="bg-blue-600 text-white px-3 py-2 rounded-lg rounded-br-sm max-w-[80%] text-sm">
-                            {message.text}
-                          </div>
-                        </div>
-                      ) : (
-                        // 다른 사람의 메시지 (왼쪽)
-                        <div className="flex items-center mb-1">
-                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold mr-2">
-                            {message.sender.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="text-white text-sm font-medium">{message.sender}</div>
-                            <div className="text-slate-400 text-xs">{message.timestamp}</div>
-                          </div>
-                        </div>
-                      )}
-                      {message.sender !== '나' && (
-                        <div className="text-slate-300 ml-8 text-sm">{message.text}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {/* 본문 영역 (채팅 제거됨) */}
+        <div className="flex-1 overflow-hidden relative min-h-0 p-3">
+          <div className="h-full w-full rounded-lg border border-slate-700 bg-slate-800/60 flex items-center justify-center">
+            <div className="text-slate-300 text-sm text-center px-3">
+              싱글 플레이 모드입니다. 채팅과 연결 기능은 제거되었습니다.
             </div>
-
-            {/* 메모장 */}
-            <div className="w-1/2 flex-shrink-0 p-3 relative bg-slate-800">
-              {/* 왼쪽 스와이프 힌트 */}
-              <div className="absolute left-0 top-0 bottom-0 w-2 bg-slate-400/60 rounded-r-full transition-all duration-300 hover:w-3 active:w-4 z-10" />
-              
-              <div className="text-white text-xs mb-2">메모장 ({messages.filter(msg => msg.type === 'party').length}개 메시지)</div>
-              <div className="h-full overflow-y-auto">
-                <div className="space-y-3">
-                  {messages.filter(msg => msg.type === 'party').map(message => (
-                    <div key={message.id} className={`${message.sender === '나' ? 'text-right' : 'text-left'}`}>
-                      {message.sender === '나' ? (
-                        // 내 메시지 (오른쪽)
-                        <div className="flex flex-col items-end">
-                          <div className="text-slate-400 text-xs mb-1">{message.timestamp}</div>
-                          <div className="bg-purple-600 text-white px-3 py-2 rounded-lg rounded-br-sm max-w-[80%] text-sm">
-                            {message.text}
-                          </div>
-                        </div>
-                      ) : (
-                        // 다른 사람의 메시지 (왼쪽)
-                        <div className="flex items-center mb-1">
-                          <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold mr-2">
-                            {message.sender.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="text-white text-sm font-medium">{message.sender}</div>
-                            <div className="text-slate-400 text-xs">{message.timestamp}</div>
-                          </div>
-                        </div>
-                      )}
-                      {message.sender !== '나' && (
-                        <div className="text-slate-300 ml-8 text-sm">{message.text}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* 스와이프 인디케이터 */}
-        <div className="flex justify-center py-1">
-          <div className="flex space-x-2">
-            <motion.div 
-              className="w-2 h-2 rounded-full bg-blue-400" 
-              style={{ opacity: mainDotOpacity }}
-            />
-            <motion.div 
-              className="w-2 h-2 rounded-full bg-purple-400" 
-              style={{ opacity: partyDotOpacity }}
-            />
           </div>
         </div>
 
-        {/* 하단 패널 + 입력 */}
+        {/* 하단 패널 */}
         <div className="flex-shrink-0 space-y-2 border-t border-slate-700 p-2">
           <div className="grid grid-cols-2 gap-2">
             <div 
@@ -289,21 +112,6 @@ export default function SinglePlayPage() {
             >
               인벤토리/스킬
             </button>
-          </div>
-
-          <div className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={currentMessage}
-              onChange={(e) => setCurrentMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder={`${activeTab === 'main' ? '메인' : '파티'} 채팅을 입력하세요...`}
-              className="flex-1 border-white/10 bg-black/20 text-white placeholder:text-slate-400 text-sm h-9"
-            />
-            <Button onClick={sendMessage} size="icon" className="h-9 w-9 bg-blue-600 hover:bg-blue-700">
-              <Send className="h-4 w-4" />
-              <span className="sr-only">전송</span>
-            </Button>
           </div>
         </div>
       </div>
@@ -333,33 +141,7 @@ export default function SinglePlayPage() {
         </div>
       )}
 
-      {/* 던전 클리어 축하 모달 */}
-      {showClearModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-white mb-4">던전을 클리어했습니다!</h3>
-            <p className="text-slate-300 mb-6">메인 채팅으로 돌아가시겠습니까?</p>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowClearModal(false)}
-                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
-              >
-                취소
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowClearModal(false);
-                  setActiveTab('main');
-                }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-              >
-                메인으로 돌아가기
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 던전 클리어 모달 제거됨 */}
 
       {/* 인벤토리/스킬 모달 */}
       {showInventoryModal && (
@@ -496,7 +278,7 @@ export default function SinglePlayPage() {
                   <span className="font-medium text-white">크리티컬 확률 :</span> 10%
                 </div>
                 <div className="text-sm text-slate-300">
-                  <span className="font-medium text-white">주사위 성공 확률 :</span> +1%
+                  <span className="font-medium text-white">주사위 성공률 :</span> +1%
                 </div>
               </div>
             </div>
@@ -511,7 +293,7 @@ export default function SinglePlayPage() {
                   <span className="font-medium text-white">지혜 :</span> 10
                 </div>
                 <div className="text-sm text-slate-300">
-                  <span className="font-medium text-white">외지 :</span> 10
+                  <span className="font-medium text-white">의지 :</span> 10
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -519,7 +301,7 @@ export default function SinglePlayPage() {
                   <span className="font-medium text-white">민첩:</span> 10
                 </div>
                 <div className="text-sm text-slate-300">
-                  <span className="font-medium text-white">은:</span> 10
+                  <span className="font-medium text-white">운:</span> 10
                 </div>
                 <div className="text-sm text-slate-300">
                   <span className="font-medium text-white">힘:</span> 10

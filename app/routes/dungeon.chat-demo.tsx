@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 
-const MobileChatDemo = lazy(() => import('../components/mobile-chat-demo'))
+const WebChatInterface = lazy(() => import('../components/web-chat-interface'))
 
 export default function ChatDemoPage() {
   return (
@@ -10,7 +10,7 @@ export default function ChatDemoPage() {
           <div className="text-white">채팅 데모 로딩중...</div>
         </div>
       }>
-        <MobileChatDemo />
+        <WebChatInterface />
       </Suspense>
     </div>
   )

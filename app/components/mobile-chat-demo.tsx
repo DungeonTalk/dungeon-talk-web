@@ -24,6 +24,8 @@ interface InventoryItem {
   quantity: number
 }
 
+interface PartyItem { id: number; name: string; icon: string; effect: string; rarity: 'common'|'rare'|'epic'|'legendary'|'empty' }
+interface PartySkill { id: number; name: string; icon: string; effect: string; cooldown: string; mana: string }
 interface PartyMember {
   id: string
   name: string
@@ -34,17 +36,13 @@ interface PartyMember {
   mp: { current: number; max: number }
   physicalAttack: number
   magicalAttack: number
+  evade: number
+  accuracy: number
   criticalRate: number
-  successRate: number
-  stats: {
-    intelligence: number
-    wisdom: number
-    vitality: number
-    mana: number
-    luck: number
-    strength: number
-  }
-  inventory: InventoryItem[]
+  diceSuccess: number
+  core: { intelligence: number; wisdom: number; agility: number; strength: number; vitality: number; luck: number }
+  inventory: PartyItem[]
+  skills: PartySkill[]
 }
 
 export default function MobileChatDemo() {
@@ -54,14 +52,65 @@ export default function MobileChatDemo() {
   const [showClearModal, setShowClearModal] = useState(false)
   const [showInventoryModal, setShowInventoryModal] = useState(false)
   const [showStatusModal, setShowStatusModal] = useState(false)
+  const [showPartyMemberModal, setShowPartyMemberModal] = useState(false)
+  const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null)
   
-  // URL에서 world 값 파싱
+  // URL에서 world 값 파싱 (SSR 안전)
   const getWorldFromURL = () => {
+    if (typeof window === 'undefined') return '던전 게임'
     const urlParams = new URLSearchParams(window.location.search)
     return urlParams.get('world') || '던전 게임'
   }
   
   const world = getWorldFromURL()
+
+  // 샘플 파티원 데이터 (상태 + 인벤토리/스킬 포함)
+  const partyMembers: PartyMember[] = [
+    {
+      id: 'A', name: '파티원A', level: 5, race: '엘프', status: '정상',
+      hp: { current: 20, max: 20 }, mp: { current: 12, max: 20 },
+      physicalAttack: 8, magicalAttack: 12, evade: 15, accuracy: 18, criticalRate: 7, diceSuccess: 1,
+      core: { intelligence: 12, wisdom: 10, agility: 11, strength: 8, vitality: 9, luck: 10 },
+      inventory: [
+        { id: 1, name: '체력 물약', icon: '❤️', effect: 'HP 50 회복', rarity: 'common' },
+        { id: 2, name: '마나 물약', icon: '💙', effect: 'MP 30 회복', rarity: 'common' },
+        { id: 3, name: '강화석', icon: '💎', effect: '무기 강화 +1', rarity: 'rare' },
+        { id: 4, name: '텔레포트 스크롤', icon: '📜', effect: '즉시 마을로 이동', rarity: 'epic' },
+        { id: 5, name: '부활의 반지', icon: '💍', effect: '사망 시 1회 부활', rarity: 'legendary' },
+        { id: 6, name: '빈 슬롯', icon: '', effect: '', rarity: 'empty' },
+      ],
+      skills: [
+        { id: 1, name: '파이어볼', icon: '🔥', effect: '마법 공격력 120%', cooldown: '3초', mana: '20' },
+        { id: 2, name: '힐', icon: '✨', effect: 'HP 80 회복', cooldown: '5초', mana: '25' },
+        { id: 3, name: '쉴드', icon: '🛡️', effect: '방어력 50% 증가', cooldown: '8초', mana: '30' },
+        { id: 4, name: '더블 어택', icon: '⚔️', effect: '연속 공격 2회', cooldown: '4초', mana: '15' },
+        { id: 5, name: '스텔스', icon: '👻', effect: '3초간 은신', cooldown: '12초', mana: '40' },
+        { id: 6, name: '빈 슬롯', icon: '', effect: '', cooldown: '', mana: '' },
+      ],
+    },
+    {
+      id: 'B', name: '파티원B', level: 4, race: '휴먼', status: '중독',
+      hp: { current: 18, max: 20 }, mp: { current: 10, max: 20 },
+      physicalAttack: 10, magicalAttack: 7, evade: 12, accuracy: 17, criticalRate: 5, diceSuccess: 1,
+      core: { intelligence: 9, wisdom: 8, agility: 10, strength: 11, vitality: 10, luck: 9 },
+      inventory: [
+        { id: 1, name: '해독제', icon: '🧪', effect: '중독 해제', rarity: 'rare' },
+        { id: 2, name: '체력 물약', icon: '❤️', effect: 'HP 50 회복', rarity: 'common' },
+        { id: 3, name: '마나 물약', icon: '💙', effect: 'MP 30 회복', rarity: 'common' },
+        { id: 4, name: '강화석', icon: '💎', effect: '무기 강화 +1', rarity: 'rare' },
+        { id: 5, name: '빈 슬롯', icon: '', effect: '', rarity: 'empty' },
+        { id: 6, name: '빈 슬롯', icon: '', effect: '', rarity: 'empty' },
+      ],
+      skills: [
+        { id: 1, name: '더블 어택', icon: '⚔️', effect: '연속 공격 2회', cooldown: '4초', mana: '15' },
+        { id: 2, name: '쉴드', icon: '🛡️', effect: '방어력 50% 증가', cooldown: '8초', mana: '30' },
+        { id: 3, name: '파이어볼', icon: '🔥', effect: '마법 공격력 120%', cooldown: '3초', mana: '20' },
+        { id: 4, name: '힐', icon: '✨', effect: 'HP 80 회복', cooldown: '5초', mana: '25' },
+        { id: 5, name: '스텔스', icon: '👻', effect: '3초간 은신', cooldown: '12초', mana: '40' },
+        { id: 6, name: '빈 슬롯', icon: '', effect: '', cooldown: '', mana: '' },
+      ],
+    },
+  ]
 
   // 인벤토리 아이템 데이터
   const inventoryItems = [
@@ -147,7 +196,9 @@ export default function MobileChatDemo() {
   }
 
   const confirmExit = () => {
-    window.location.href = '/dungeon'
+    if (typeof window !== 'undefined') {
+      window.location.href = '/dungeon'
+    }
   }
 
   const cancelExit = () => {
@@ -306,8 +357,17 @@ export default function MobileChatDemo() {
               스킬
             </button>
             <div className="rounded-lg border border-white/5 bg-black/20 p-3 text-center">
-              <div className="text-xs text-slate-300">파티원A: <span className="text-white">20/20</span></div>
-              <div className="text-xs text-slate-300">파티원B: <span className="text-white">18/20</span></div>
+              <div className="space-y-1 max-h-20 overflow-y-auto">
+                {partyMembers.map(member => (
+                  <button
+                    key={member.id}
+                    className="w-full text-xs text-slate-300 py-1 rounded hover:bg-black/30 transition-colors"
+                    onClick={() => { setSelectedMember(member); setShowPartyMemberModal(true) }}
+                  >
+                    {member.name}: <span className="text-white">{member.hp.current}/{member.hp.max}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -456,14 +516,14 @@ export default function MobileChatDemo() {
       {/* 캐릭터 상태 모달 */}
       {showStatusModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md mx-4 border border-slate-600">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-black">내 상태</h3>
+              <h3 className="text-lg font-semibold text-white">내 상태</h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowStatusModal(false)}
-                className="h-8 w-8 p-0 text-gray-600 hover:text-black hover:bg-gray-100"
+                className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -472,80 +532,190 @@ export default function MobileChatDemo() {
             {/* 메인 스탯 */}
             <div className="space-y-3 mb-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-sm text-black">
-                  <span className="font-medium">닉네임 :</span> 메롱
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">닉네임 :</span> 메롱
                 </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">레벨 :</span> 1(인게임 레벨)
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-sm text-black">
-                  <span className="font-medium">종족 :</span> 엘프
-                </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">상태 :</span> 기절
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">레벨 :</span> 1(인게임 레벨)
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-sm text-black">
-                  <span className="font-medium">HP :</span> 100/100
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">종족 :</span> 엘프
                 </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">MP :</span> 100/100
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-sm text-black">
-                  <span className="font-medium">물리 공격력 :</span> 10
-                </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">마법 공격력 :</span> 10
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">상태 :</span> 기절
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-sm text-black">
-                  <span className="font-medium">회피율 :</span> 20%
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">HP :</span> 100/100
                 </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">명중률 :</span> 20%
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">MP :</span> 100/100
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-sm text-black">
-                  <span className="font-medium">크리티컬 확률 :</span> 10%
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">물리 공격력 :</span> 10
                 </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">주사위 성공 확률 :</span> +1%
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">마법 공격력 :</span> 10
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">회피율 :</span> 20%
+                </div>
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">명중률 :</span> 20%
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">크리티컬 확률 :</span> 10%
+                </div>
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">주사위 성공률 :</span> +1%
                 </div>
               </div>
             </div>
 
             {/* 코어 스탯 */}
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
               <div className="grid grid-cols-3 gap-4 mb-3">
-                <div className="text-sm text-black">
-                  <span className="font-medium">지능:</span> 10
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">지능:</span> 10
                 </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">지혜 :</span> 10
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">지혜 :</span> 10
                 </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">외지 :</span> 10
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">의지 :</span> 10
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
-                <div className="text-sm text-black">
-                  <span className="font-medium">민첩:</span> 10
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">민첩:</span> 10
                 </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">은:</span> 10
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">운:</span> 10
                 </div>
-                <div className="text-sm text-black">
-                  <span className="font-medium">힘:</span> 10
+                <div className="text-sm text-slate-300">
+                  <span className="font-medium text-white">힘:</span> 10
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 파티원 상태 + 인벤토리/스킬 모달 */}
+      {showPartyMemberModal && selectedMember && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-4 max-w-md max-h-[60vh] mx-4 border border-slate-600 overflow-hidden">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-white">{selectedMember.name} 상태</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPartyMemberModal(false)}
+                className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* 상태 정보 */}
+            <div className="space-y-3 mb-6 max-h-[48vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">닉네임 :</span> {selectedMember.name}</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">레벨 :</span> {selectedMember.level}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">종족 :</span> {selectedMember.race}</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">상태 :</span> {selectedMember.status}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">HP :</span> {selectedMember.hp.current}/{selectedMember.hp.max}</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">MP :</span> {selectedMember.mp.current}/{selectedMember.mp.max}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">물리 공격력 :</span> {selectedMember.physicalAttack}</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">마법 공격력 :</span> {selectedMember.magicalAttack}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">회피율 :</span> {selectedMember.evade}%</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">명중률 :</span> {selectedMember.accuracy}%</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">크리티컬 확률 :</span> {selectedMember.criticalRate}%</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">주사위 성공률 :</span> +{selectedMember.diceSuccess}%</div>
+              </div>
+            </div>
+
+            {/* 코어 스탯 */}
+            <div className="bg-slate-700 rounded-lg p-4 border border-slate-600 mb-6">
+              <h4 className="text-white font-medium mb-3">코어 스탯</h4>
+              <div className="grid grid-cols-3 gap-4 mb-3">
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">지능:</span> {selectedMember.core.intelligence}</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">지혜:</span> {selectedMember.core.wisdom}</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">민첩:</span> {selectedMember.core.agility}</div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">힘:</span> {selectedMember.core.strength}</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">체력:</span> {selectedMember.core.vitality}</div>
+                <div className="text-sm text-slate-300"><span className="font-medium text-white">운:</span> {selectedMember.core.luck}</div>
+              </div>
+            </div>
+
+            {/* 인벤토리 */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-white mb-3 text-center">인벤토리</h4>
+              <div className="grid grid-cols-3 gap-2">
+                {selectedMember.inventory.map((item) => {
+                  const rarityMap: Record<string, string> = { common: '일반', rare: '레어', epic: '에픽', legendary: '레전드리', empty: '빈 슬롯' }
+                  const rarity = rarityMap[item.rarity]
+                  const html = `
+                    <div class=\"font-medium mb-1\">${item.name}</div>
+                    ${item.effect ? `<div class=\"text-slate-300\">효과: ${item.effect}</div>` : ''}
+                    ${rarity ? `<div class=\"text-slate-400 mt-1\">등급: ${rarity}</div>` : ''}
+                  `
+                  return (
+                    <Tooltip key={item.id} html={html}>
+                      <div className="w-16 h-16 rounded-lg border border-slate-600 bg-slate-700 flex flex-col items-center justify-center relative">
+                        <span className="text-slate-200 text-base">{item.icon}</span>
+                        <span className="text-slate-100 text-xs text-center leading-tight mt-0.5">{item.name}</span>
+                      </div>
+                    </Tooltip>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 스킬 */}
+            <div className="mb-2">
+              <h4 className="text-md font-medium text-white mb-3 text-center">스킬</h4>
+              <div className="grid grid-cols-3 gap-2">
+                {selectedMember.skills.map((skill) => {
+                  const html = `
+                    <div class=\"font-medium mb-1\">${skill.name}</div>
+                    ${skill.effect ? `<div class=\"text-slate-300\">${skill.effect}</div>` : ''}
+                    ${skill.cooldown ? `<div class=\"text-slate-400 mt-1\">쿨다운: ${skill.cooldown}</div>` : ''}
+                    ${skill.mana ? `<div class=\"text-slate-400\">MP: ${skill.mana}</div>` : ''}
+                  `
+                  return (
+                    <Tooltip key={skill.id} html={html}>
+                      <div className="w-16 h-16 rounded-lg border border-slate-600 bg-slate-700 flex flex-col items-center justify-center relative">
+                        <div className="text-2xl mb-1">{skill.icon}</div>
+                        <div className="text-xs text-white font-medium text-center leading-tight">{skill.name}</div>
+                      </div>
+                    </Tooltip>
+                  )
+                })}
+              </div>
+            </div>
+
           </div>
         </div>
       )}

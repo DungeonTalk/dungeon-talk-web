@@ -16,8 +16,14 @@ const requestHandler = createRequestHandler(
 
 export default {
   async fetch(request, env, ctx) {
-    return requestHandler(request, {
-      cloudflare: { env, ctx },
-    });
+    try {
+      return await requestHandler(request, {
+        cloudflare: { env, ctx },
+      });
+    } catch (err: any) {
+      const message = err?.stack || err?.message || String(err)
+      console.error('SSR error:', message)
+      return new Response(message, { status: 500, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+    }
   },
 } satisfies ExportedHandler<Env>;
