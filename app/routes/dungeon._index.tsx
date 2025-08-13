@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog'
 import { Plus, Minus } from 'lucide-react'
 
 interface Stat {
@@ -67,14 +68,24 @@ export default function DungeonMainPage() {
 		navigate(`/dungeon/party-finding?world=${encodeURIComponent(worldName)}`)
   }
 
-  // 로그인 상태
+  // 로그인 상태 및 입력값
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loginId, setLoginId] = useState('')
   const [loginPw, setLoginPw] = useState('')
-  const [saveMessage, setSaveMessage] = useState('')
+  const [isSaveOpen, setIsSaveOpen] = useState(false)
+  const canLogin = loginId.trim().length > 0 && loginPw.trim().length > 0
 
-  // 초기에는 항상 로그인 화면을 노출한다
+  // 새로고침 시 로그인 유지
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const v = localStorage.getItem('dgt_logged_in')
+        if (v === '1') setIsLoggedIn(true)
+      }
+    } catch {}
+  }, [])
 
+  // 로그인 직후 저장된 보너스 스탯 복원
   useEffect(() => {
     if (!isLoggedIn) return
     try {
@@ -86,9 +97,10 @@ export default function DungeonMainPage() {
             setStats(prev => {
               const updated: Record<string, Stat> = { ...prev }
               for (const k of Object.keys(updated)) {
-                if (parsed[k]?.bonus != null) {
+                const item = (parsed as any)[k]
+                if (item && item.bonus != null) {
                   const base = updated[k].base
-                  const bonus = Math.max(0, Number(parsed[k].bonus) || 0)
+                  const bonus = Math.max(0, Number(item.bonus) || 0)
                   updated[k] = { base, bonus, total: base + bonus }
                 }
               }
@@ -109,6 +121,15 @@ export default function DungeonMainPage() {
     setIsLoggedIn(true)
   }
 
+  const handleLogout = () => {
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.removeItem('dgt_logged_in')
+      }
+    } catch {}
+    setIsLoggedIn(false)
+  }
+
   const handleSaveBonus = () => {
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -117,47 +138,47 @@ export default function DungeonMainPage() {
         localStorage.setItem('dgt_stats', JSON.stringify(compact))
       }
     } catch {}
-    setSaveMessage('추가 능력치가 저장되었습니다.')
-    setTimeout(() => setSaveMessage(''), 2000)
+    setIsSaveOpen(true)
   }
 
-  return (
-		<div className="p-5">
-			{!isLoggedIn ? (
-				<div className="space-y-4">
-					<div className="w-full h-20 overflow-hidden flex items-center justify-center">
-						<img
-							src="/dungeontalk-open.svg"
-							alt="던전톡 오픈!"
-							className="max-w-full h-full object-contain object-center"
-							onError={(e) => {
-								const img = e.currentTarget as HTMLImageElement
-								if (!img.dataset.fallback) {
-									img.dataset.fallback = '1'
-									img.src = '/placeholder-logo.png'
-								}
-							}}
-						/>
-					</div>
-					<Card className="bg-slate-700 border-slate-600">
-						<CardContent className="pt-4">
-							<div className="space-y-3">
-								<div>
-									<div className="text-slate-300 text-sm mb-1">아이디</div>
-									<Input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="아무거나 입력하세요" className="bg-black/20 border-white/10 text-white h-9" onKeyDown={e => e.key === 'Enter' && handleLogin()} />
-								</div>
-								<div>
-									<div className="text-slate-300 text-sm mb-1">비밀번호</div>
-									<Input type="password" value={loginPw} onChange={e => setLoginPw(e.target.value)} placeholder="아무거나 입력하세요" className="bg-black/20 border-white/10 text-white h-9" onKeyDown={e => e.key === 'Enter' && handleLogin()} />
-								</div>
-								<Button className="w-full h-9 bg-blue-600 hover:bg-blue-700" onClick={handleLogin}>로그인</Button>
-								<div className="text-center text-xs text-slate-400">임시 로그인입니다. 아무 값이나 입력 후 로그인하세요.</div>
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-			) : (
-	          <div className="w-full h-20 sm:h-24 md:h-28 overflow-hidden flex items-center justify-center mb-6">
+  	  return (
+  		<div className="p-5">
+        {!isLoggedIn ? (
+          <div className="space-y-4 max-w-sm mx-auto">
+            <div className="w-full h-20 sm:h-24 md:h-28 overflow-hidden flex items-center justify-center mb-6">
+              <img
+                src="/dungeontalk-open.svg"
+                alt="던전톡 오픈!"
+                className="max-w-full h-full object-contain object-center"
+                onError={(e) => {
+                  const img = e.currentTarget as HTMLImageElement
+                  if (!img.dataset.fallback) {
+                    img.dataset.fallback = '1'
+                    img.src = '/placeholder-logo.png'
+                  }
+                }}
+              />
+            </div>
+            <Card className="bg-slate-700 border-slate-600">
+              <CardContent className="pt-4">
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-slate-300 text-sm mb-1">아이디</div>
+                    <Input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="아이디를 입력하세요" className="bg-black/20 border-white/10 text-white h-9" onKeyDown={e => { if (e.key === 'Enter' && canLogin) handleLogin() }} />
+                  </div>
+                  <div>
+                    <div className="text-slate-300 text-sm mb-1">비밀번호</div>
+                    <Input type="password" value={loginPw} onChange={e => setLoginPw(e.target.value)} placeholder="비밀번호를 입력하세요" className="bg-black/20 border-white/10 text-white h-9" onKeyDown={e => { if (e.key === 'Enter' && canLogin) handleLogin() }} />
+                  </div>
+                  <Button className="w-full h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleLogin} disabled={!canLogin}>로그인</Button>
+                  <div className="text-center text-xs text-slate-400">아이디와 비밀번호를 입력하세요.</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <div>
+          <div className="w-full h-20 sm:h-24 md:h-28 overflow-hidden flex items-center justify-center mb-6">
             <img
               src="/dungeontalk-open.svg"
               alt="던전톡 오픈!"
@@ -271,14 +292,42 @@ export default function DungeonMainPage() {
               })}
             </div>
 
-            {/* 저장 버튼 */}
+            {/* 저장/로그아웃 버튼 배치: 저장은 왼쪽, 로그아웃은 오른쪽 끝 */}
             <div className="mt-2 flex items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                className="h-8 px-3 border-slate-500 text-slate-200 hover:bg-slate-600"
+                onClick={handleSaveBonus}
+              >
+                추가 능력치 저장
+              </Button>
               <div className="flex items-center gap-2">
-                <Button variant="outline" className="h-8 px-3 border-slate-500 text-slate-200 hover:bg-slate-600" onClick={handleSaveBonus}>추가 능력치 저장</Button>
-                <Button variant="outline" className="h-8 px-3 border-slate-500 text-slate-200 hover:bg-slate-600" onClick={() => setIsLoggedIn(false)}>로그아웃</Button>
+                <Button
+                  variant="outline"
+                  className="h-8 px-3 border-white/40 text-white hover:bg-white/10"
+                  onClick={handleLogout}
+                >
+                  로그아웃
+                </Button>
               </div>
-              {saveMessage && <span className="text-xs text-green-400">{saveMessage}</span>}
             </div>
+
+            {/* 저장 완료 모달 */}
+            <Dialog open={isSaveOpen} onOpenChange={setIsSaveOpen}>
+              <DialogContent className="bg-slate-800 border border-slate-700 text-white">
+                <DialogHeader>
+                  <DialogTitle>저장 완료</DialogTitle>
+                  <DialogDescription className="text-slate-300">
+                    추가 능력치가 저장되었습니다.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button onClick={() => setIsSaveOpen(false)} className="bg-blue-600 hover:bg-blue-700">
+                    확인
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* 추가 능력치 총합 표시는 사용자 요청으로 제거 */}
           </div>
@@ -321,7 +370,8 @@ export default function DungeonMainPage() {
           <div className="text-right">
             <span className="text-xs text-slate-400">더보기 →</span>
           </div>
-      )}
-    </div>
+          </div>
+        )}
+        </div>
   )
 }
