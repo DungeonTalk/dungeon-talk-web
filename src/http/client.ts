@@ -29,6 +29,20 @@ export function clearAuthTokens() {
   } catch {}
 }
 
+export function getMemberIdFromToken(): string | null {
+  try {
+    const token = getAccessToken()
+    if (!token) return null
+    const payload = token.split('.')[1]
+    if (!payload) return null
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const decodedJson = typeof atob !== 'undefined' ? atob(base64) : ''
+    if (!decodedJson) return null
+    const decoded = JSON.parse(decodedJson)
+    return decoded?.id || null
+  } catch { return null }
+}
+
 async function doFetch<T>(method: string, url: string, body?: unknown, config?: RequestConfig, _retry?: boolean): Promise<{ data: T }> {
   const base = (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_API_BASE) || ''
   const full = url.startsWith('http') ? url : `${base || ''}${url}`
@@ -44,9 +58,10 @@ async function doFetch<T>(method: string, url: string, body?: unknown, config?: 
     if (qs) u.search = u.search ? `${u.search}&${qs}` : `?${qs}`
   }
   const token = getAccessToken()
+  const isAuthEndpoint = u.pathname.startsWith('/v1/auth/login') || u.pathname.startsWith('/v1/auth/refresh')
   const res = await fetch(u.toString(), {
     method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(config?.headers || {}) },
+    headers: { 'Content-Type': 'application/json', ...(!isAuthEndpoint && token ? { Authorization: `Bearer ${token}` } : {}), ...(config?.headers || {}) },
     body: body == null || method === 'GET' ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
     credentials: 'include',
   })
@@ -55,7 +70,7 @@ async function doFetch<T>(method: string, url: string, body?: unknown, config?: 
   try { data = text ? JSON.parse(text) : undefined } catch { data = text }
   if (!res.ok) {
     // 401 처리: refreshToken으로 재발급 후 1회 재시도
-    if (res.status === 401 && !_retry) {
+    if (res.status === 401 && !_retry && !isAuthEndpoint) {
       const refreshToken = getRefreshToken()
       if (refreshToken) {
         try {

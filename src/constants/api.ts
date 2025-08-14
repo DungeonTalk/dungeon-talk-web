@@ -7,6 +7,11 @@ export const API_ENDPOINTS = {
   MEMBER: {
     REGISTER: '/v1/member/register',
   },
+  CHAR: {
+    BY_ID: (id: string) => `/v1/characters/${encodeURIComponent(id)}`,
+    BY_MEMBER: (memberId: string) => `/v1/characters?memberId=${encodeURIComponent(memberId)}`,
+    BASIC: (id: string) => `/v1/characters/basic/${encodeURIComponent(id)}`,
+  },
   ROOMS: {
     BASE: '/v1/rooms',
     BY_TYPE_ID: (roomType: string, roomId: string) => `/v1/rooms/${encodeURIComponent(roomType)}/${encodeURIComponent(roomId)}`,

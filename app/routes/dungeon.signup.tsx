@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router'
 import { Card, CardContent } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
+import { register as registerApi } from '@/http/memberControllerApi'
+import { login as loginApi } from '@/http/authControllerApi'
 
 export default function DungeonSignupPage() {
   const navigate = useNavigate()
@@ -26,14 +28,14 @@ export default function DungeonSignupPage() {
       '드워프는 마법적 재능은 낮지만 단단한 체력과 강한 의지를 갖춘 종족입니다. 근접 전투와 방어, 장비 제작과 같은 실용 영역에서 탁월한 능력을 발휘합니다. 꾸준함과 끈기를 바탕으로 난관을 정면 돌파하는 플레이 스타일에 적합한 선택입니다.',
   }
 
-  const isValidUserId = /^[A-Za-z]{1,19}$/.test(userId)
+  const isValidUserId = /^[A-Za-z0-9]{1,20}$/.test(userId)
   const isValidNickname = nickname.trim().length > 0 && nickname.trim().length <= 6
   const canSubmit = isValidUserId && password && password2 && isValidNickname && password === password2 && race
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setError('')
     if (!isValidUserId) {
-      setError('아이디는 영문자만 입력 가능하며 20자 미만이어야 합니다.')
+      setError('아이디는 영문/숫자만 가능하며 최대 20자입니다.')
       return
     }
     if (!isValidNickname) {
@@ -49,18 +51,18 @@ export default function DungeonSignupPage() {
       return
     }
     try {
-      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-        const key = `dgt_user_${userId}`
-        if (localStorage.getItem(key)) {
-          setError('이미 존재하는 아이디입니다.')
-          return
+      await registerApi({ name: userId, nickName: nickname, password })
+      await loginApi({ name: userId, password })
+      try {
+        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+          localStorage.setItem('dgt_logged_in', '1')
         }
-        localStorage.setItem(key, JSON.stringify({ userId, password, nickname, race }))
-        // 임시로 회원가입 후 바로 로그인 처리
-        localStorage.setItem('dgt_logged_in', '1')
-      }
-    } catch {}
-    navigate('/dungeon')
+      } catch {}
+      navigate('/dungeon')
+    } catch (e: any) {
+      const msg = e?.data?.msg || '회원가입에 실패했습니다.'
+      setError(msg)
+    }
   }
 
   return (
@@ -73,16 +75,16 @@ export default function DungeonSignupPage() {
                 <div className="text-slate-300 text-sm mb-1">아이디</div>
                 <Input
                   value={userId}
-                  maxLength={19}
+                  maxLength={20}
                   onChange={e => {
-                    const lettersOnly = e.target.value.replace(/[^A-Za-z]/g, '').slice(0, 19)
-                    setUserId(lettersOnly)
+                    const alnum = e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)
+                    setUserId(alnum)
                   }}
-                  placeholder="영문만, 20자 미만"
+                  placeholder="영문/숫자, 최대 20자"
                   className="bg-black/20 border-white/10 text-white h-9"
                 />
                 {!isValidUserId && userId.length > 0 && (
-                  <div className="mt-1 text-[11px] text-red-400">영문자만 입력 가능하며 20자 미만이어야 합니다.</div>
+                  <div className="mt-1 text-[11px] text-red-400">아이디는 영문/숫자만 가능하며 최대 20자입니다.</div>
                 )}
               </div>
               <div>

@@ -1,5 +1,5 @@
 import type { Route } from "./+types/_index";
-import { redirect } from "react-router";
+import DungeonMainPage from "./dungeon._index";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -8,7 +8,6 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-// 서버에서 /dungeon으로 리디렉션
-export function loader() {
-  return redirect("/dungeon");
+export default function IndexRoute() {
+  return <DungeonMainPage />;
 }

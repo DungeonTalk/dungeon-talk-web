@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../components/ui/button'
 import { login as loginApi, logout as logoutApi } from '@/http/authControllerApi'
+import { getMemberIdFromToken } from '@/http/client'
+import { getCharacterByMember } from '@/http/gameCharacterApi'
 import { Card, CardContent } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog'
@@ -15,6 +17,52 @@ interface Stat {
 
 export default function DungeonMainPage() {
   const navigate = useNavigate()
+  const LOGIN_FAIL_COUNT_KEY = 'dgt_login_fail_count'
+  const LOGIN_LOCK_UNTIL_KEY = 'dgt_login_lock_until'
+  const MAX_ATTEMPTS = 5
+  const LOCK_DURATION_MS = 10 * 60 * 1000
+
+  const getNumberFromLocalStorage = (key: string): number => {
+    try {
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') return 0
+      const v = localStorage.getItem(key)
+      const n = v ? parseInt(v, 10) : 0
+      return Number.isFinite(n) ? n : 0
+    } catch { return 0 }
+  }
+
+  const setNumberToLocalStorage = (key: string, value: number) => {
+    try {
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
+      localStorage.setItem(key, String(value))
+    } catch {}
+  }
+
+  const clearLoginGuards = () => {
+    try {
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
+      localStorage.removeItem(LOGIN_FAIL_COUNT_KEY)
+      localStorage.removeItem(LOGIN_LOCK_UNTIL_KEY)
+    } catch {}
+  }
+
+  const getLockRemainingMs = (): number => {
+    try {
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') return 0
+      const untilStr = localStorage.getItem(LOGIN_LOCK_UNTIL_KEY)
+      const until = untilStr ? parseInt(untilStr, 10) : 0
+      const now = Date.now()
+      return until && until > now ? until - now : 0
+    } catch { return 0 }
+  }
+
+  const formatMsToMMSS = (ms: number): string => {
+    const totalSec = Math.ceil(ms / 1000)
+    const mm = Math.floor(totalSec / 60)
+    const ss = totalSec % 60
+    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+    return `${pad(mm)}:${pad(ss)}`
+  }
   
   // 능력치 상태 관리
   const [stats, setStats] = useState<Record<string, Stat>>({
@@ -86,34 +134,57 @@ export default function DungeonMainPage() {
     } catch {}
   }, [])
 
-  // 로그인 직후 저장된 보너스 스탯 복원
+  // 로그인 직후 캐릭터 정보 로드 및 저장된 보너스 스탯 복원
   useEffect(() => {
     if (!isLoggedIn) return
-    try {
-      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-        const raw = localStorage.getItem('dgt_stats')
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (parsed && typeof parsed === 'object') {
-            setStats(prev => {
-              const updated: Record<string, Stat> = { ...prev }
-              for (const k of Object.keys(updated)) {
-                const item = (parsed as any)[k]
-                if (item && item.bonus != null) {
-                  const base = updated[k].base
-                  const bonus = Math.max(0, Number(item.bonus) || 0)
-                  updated[k] = { base, bonus, total: base + bonus }
-                }
-              }
-              return updated
-            })
+    ;(async () => {
+      try {
+        const memberId = getMemberIdFromToken()
+        if (memberId) {
+          const { data } = await getCharacterByMember(memberId)
+          const c = data?.data
+          if (c) {
+            // 기본 표시에 반영 가능한 부분이 있으면 여기서 상태 업데이트
+            // 현재 UI의 닉네임/레벨/종족 자리에 반영 위해 로컬 상태를 추가
+            setProfile({ nickname: c.name || '모험가', level: c.level || 1, race: c.race || '인간', hp: c.hp || 100, mp: c.mp || 100 })
           }
         }
-      }
-    } catch {}
+      } catch {}
+      try {
+        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+          const raw = localStorage.getItem('dgt_stats')
+          if (raw) {
+            const parsed = JSON.parse(raw)
+            if (parsed && typeof parsed === 'object') {
+              setStats(prev => {
+                const updated: Record<string, Stat> = { ...prev }
+                for (const k of Object.keys(updated)) {
+                  const item = (parsed as any)[k]
+                  if (item && item.bonus != null) {
+                    const base = updated[k].base
+                    const bonus = Math.max(0, Number(item.bonus) || 0)
+                    updated[k] = { base, bonus, total: base + bonus }
+                  }
+                }
+                return updated
+              })
+            }
+          }
+        }
+      } catch {}
+    })()
   }, [isLoggedIn])
 
+  // 캐릭터 프로필 표시용 상태
+  const [profile, setProfile] = useState({ nickname: '모험가', level: 1, race: '인간', hp: 100, mp: 100 })
+
   const handleLogin = async () => {
+    // 잠금 확인
+    const remain = getLockRemainingMs()
+    if (remain > 0) {
+      alert(`로그인 시도가 일시적으로 제한되었습니다. 남은 시간 ${formatMsToMMSS(remain)} 후 다시 시도해주세요.`)
+      return
+    }
     try {
       await loginApi({ name: loginId, password: loginPw })
       try {
@@ -121,10 +192,21 @@ export default function DungeonMainPage() {
           localStorage.setItem('dgt_logged_in', '1')
         }
       } catch {}
+      clearLoginGuards()
       setIsLoggedIn(true)
     } catch (e: any) {
       const msg = e?.data?.msg || '로그인에 실패했습니다.'
-      alert(msg)
+      // 실패 카운트 증가
+      let cnt = getNumberFromLocalStorage(LOGIN_FAIL_COUNT_KEY)
+      cnt = cnt + 1
+      if (cnt >= MAX_ATTEMPTS) {
+        setNumberToLocalStorage(LOGIN_FAIL_COUNT_KEY, MAX_ATTEMPTS)
+        setNumberToLocalStorage(LOGIN_LOCK_UNTIL_KEY, Date.now() + LOCK_DURATION_MS)
+        alert(`${msg}\n실패 ${MAX_ATTEMPTS}/${MAX_ATTEMPTS}. 10분 후 다시 시도해주세요.`)
+      } else {
+        setNumberToLocalStorage(LOGIN_FAIL_COUNT_KEY, cnt)
+        alert(`${msg} (${cnt}/${MAX_ATTEMPTS})`)
+      }
     }
   }
 
@@ -208,28 +290,28 @@ export default function DungeonMainPage() {
           <div className="bg-slate-700 rounded-lg p-3 mb-3">
             {/* 기본 정보 */}
             <div className="space-y-2 mb-2">
-              <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">닉네임</span>
-                  <span className="font-semibold text-white">메롱</span>
+                  <span className="font-semibold text-white">{profile.nickname}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">레벨</span>
-                  <span className="font-semibold text-white">1</span>
+                  <span className="font-semibold text-white">{profile.level}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">종족</span>
-                  <span className="font-semibold text-white">인간</span>
+                  <span className="font-semibold text-white">{profile.race}</span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">HP</span>
-                  <span className="font-semibold text-green-400">100/100</span>
+                  <span className="font-semibold text-green-400">{profile.hp}/{profile.hp}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">MP</span>
-                  <span className="font-semibold text-blue-400">100/100</span>
+                  <span className="font-semibold text-blue-400">{profile.mp}/{profile.mp}</span>
                 </div>
               </div>
             </div>
