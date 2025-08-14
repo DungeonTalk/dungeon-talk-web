@@ -1,0 +1,63 @@
+export const API_ENDPOINTS = {
+  AUTH: {
+    LOGIN: '/v1/auth/login',
+    LOGOUT: '/v1/auth/logout',
+    REFRESH: '/v1/auth/refresh',
+  },
+  MEMBER: {
+    REGISTER: '/v1/member/register',
+  },
+  ROOMS: {
+    BASE: '/v1/rooms',
+    BY_TYPE_ID: (roomType: string, roomId: string) => `/v1/rooms/${encodeURIComponent(roomType)}/${encodeURIComponent(roomId)}`,
+    JOIN: (roomType: string, roomId: string) => `/v1/rooms/${encodeURIComponent(roomType)}/${encodeURIComponent(roomId)}/join`,
+    LEAVE: (roomType: string, roomId: string) => `/v1/rooms/${encodeURIComponent(roomType)}/${encodeURIComponent(roomId)}/leave`,
+    AI_START: (roomId: string) => `/v1/rooms/ai/${encodeURIComponent(roomId)}/start`,
+    AI_GENERATE: (roomId: string) => `/v1/rooms/ai/${encodeURIComponent(roomId)}/ai/generate`,
+    AVAILABLE: '/v1/rooms/available',
+    USER_ROOMS: (memberId: string) => `/v1/rooms/user/${encodeURIComponent(memberId)}`,
+    FACTORY_STATUS: '/v1/rooms/factory/status',
+  },
+  AICHAT: {
+    BASE: '/v1/aichat/rooms',
+    BY_ID: (roomId: string) => `/v1/aichat/rooms/${encodeURIComponent(roomId)}`,
+    START: (roomId: string) => `/v1/aichat/rooms/${encodeURIComponent(roomId)}/start`,
+    RESUME: (roomId: string) => `/v1/aichat/rooms/${encodeURIComponent(roomId)}/resume`,
+    PAUSE: (roomId: string) => `/v1/aichat/rooms/${encodeURIComponent(roomId)}/pause`,
+    LEAVE: (roomId: string) => `/v1/aichat/rooms/${encodeURIComponent(roomId)}/leave`,
+    END: (roomId: string) => `/v1/aichat/rooms/${encodeURIComponent(roomId)}/end`,
+    JOIN: '/v1/aichat/rooms/join',
+    MESSAGES: (roomId: string) => `/v1/aichat/rooms/${encodeURIComponent(roomId)}/messages`,
+    TURN_MESSAGES: (roomId: string, turnNumber: number) => `/v1/aichat/rooms/${encodeURIComponent(roomId)}/turns/${turnNumber}/messages`,
+    STATUS: (roomId: string) => `/v1/aichat/rooms/${encodeURIComponent(roomId)}/status`,
+    MY_ROOMS: '/v1/aichat/rooms/my-rooms',
+    BY_GAME: (gameId: string) => `/v1/aichat/rooms/by-game/${encodeURIComponent(gameId)}`,
+    AVAILABLE: '/v1/aichat/rooms/available',
+  },
+  CHAT: {
+    BASE: '/v1/chat/room',
+    BY_ID: (roomId: string) => `/v1/chat/room/${encodeURIComponent(roomId)}`,
+    SEND: (roomId: string) => `/v1/chat/room/${encodeURIComponent(roomId)}/message`,
+    MESSAGES: (roomId: string) => `/v1/chat/room/${encodeURIComponent(roomId)}/messages`,
+    JOIN: (roomId: string, memberId: string) => `/v1/chat/room/${encodeURIComponent(roomId)}/join/${encodeURIComponent(memberId)}`,
+    LEAVE: (roomId: string, memberId: string) => `/v1/chat/room/${encodeURIComponent(roomId)}/leave/${encodeURIComponent(memberId)}`,
+    MEMBERS_ONLINE: (roomId: string) => `/v1/chat/members/${encodeURIComponent(roomId)}/online`,
+    MEMBERS_JOIN: (roomId: string, memberId: string) => `/v1/chat/members/${encodeURIComponent(roomId)}/join/${encodeURIComponent(memberId)}`,
+    MEMBERS_LEAVE: (roomId: string, memberId: string) => `/v1/chat/members/${encodeURIComponent(roomId)}/leave/${encodeURIComponent(memberId)}`,
+  },
+  MATCH: {
+    JOIN: '/v1/match/join',
+    STATUS: (memberId: string) => `/v1/match/status/${encodeURIComponent(memberId)}`,
+    PROCESS: (worldType: string) => `/v1/match/process/${encodeURIComponent(worldType)}`,
+    QUEUE_STATS: '/v1/match/queue/stats',
+    CANCEL: '/v1/match/cancel',
+    QUEUE_CLEAR: '/v1/match/queue/clear',
+  },
+  VALKEY: {
+    SAVE_TEST: '/v1/valkey/session/test/save',
+    KEYS: '/v1/valkey/session/keys',
+    ALL: '/v1/valkey/session/all',
+  },
+}
+
+

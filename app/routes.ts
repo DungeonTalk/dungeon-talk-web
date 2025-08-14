@@ -10,6 +10,8 @@ export default [
     route("dungeon", "layouts/dungeon-layout.tsx", [
       // 던전 메인 페이지
       index("routes/dungeon._index.tsx"),
+      // 회원가입
+      route("signup", "routes/dungeon.signup.tsx"),
       
       // 게임 모드 관련
       route("mode-selection", "routes/dungeon.mode-selection.tsx"),

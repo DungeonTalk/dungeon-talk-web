@@ -60,9 +60,20 @@ export default function WebChatInterface() {
   const [showGameOver, setShowGameOver] = useState(false)
   const END_MAIN_COUNT = 10
 
+  // IME(KR) 입력 중 Enter 전송 방지용
+  const composingMainRef = useRef(false)
+  const composingPartyRef = useRef(false)
+  const shouldBlockEnter = (e: any, composingRef: { current: boolean }) => {
+    // React/Safari/IME 조합 보호
+    if (e?.isComposing || e?.nativeEvent?.isComposing) return true
+    if (composingRef.current) return true
+    if (e?.keyCode === 229) return true
+    return false
+  }
+
   useEffect(() => {
     if (showInventoryModal) setSelectedInventoryIdx(0)
-  }, [showInventoryModal])
+  }, [showInventoryModal])  
 
   useEffect(() => {
     if (showSkillsModal) setSelectedSkillIdx(0)
@@ -265,7 +276,20 @@ export default function WebChatInterface() {
             })}
           </div>
           <div className="px-4 py-3 border-t border-slate-700 flex gap-3">
-            <Input disabled={mainEnded} value={mainInput} onChange={e => setMainInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && send('main')} placeholder="메인 채팅을 입력하세요..." className="flex-1 border-white/10 bg-black/20 text-white placeholder:text-slate-400 text-sm h-9 disabled:opacity-50" />
+            <Input
+              disabled={mainEnded}
+              value={mainInput}
+              onChange={e => setMainInput(e.target.value)}
+              onCompositionStart={() => { composingMainRef.current = true }}
+              onCompositionEnd={() => { composingMainRef.current = false }}
+              onKeyDown={e => {
+                if (e.key !== 'Enter') return
+                if (shouldBlockEnter(e, composingMainRef)) return
+                send('main')
+              }}
+              placeholder="메인 채팅을 입력하세요..."
+              className="flex-1 border-white/10 bg-black/20 text-white placeholder:text-slate-400 text-sm h-9 disabled:opacity-50"
+            />
             <Button disabled={mainEnded} onClick={() => send('main')} size="sm" className="h-9 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50">전송</Button>
           </div>
         </div>
@@ -279,7 +303,7 @@ export default function WebChatInterface() {
             <div className="w-full rounded-full bg-slate-800 border border-slate-700 p-1 text-slate-300 grid grid-cols-2 gap-1">
               <button
                 className={`w-full px-4 py-1.5 text-sm rounded-full transition-colors text-center ${utilityView === 'status' ? 'bg-slate-100/10 text-white shadow-inner' : 'hover:text-white'}`}
-                onClick={() => setUtilityView('status')}
+                onClick={() => setUtilityView('status')}  
               >
                 내 상태
               </button>
@@ -436,7 +460,19 @@ export default function WebChatInterface() {
               })}
             </div>
             <div className="px-4 py-3 border-t border-slate-700 flex gap-2">
-              <Input value={partyInput} onChange={e => setPartyInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && send('party')} placeholder="파티 채팅을 입력하세요..." className="flex-1 border-white/10 bg-black/20 text-white placeholder:text-slate-400 text-sm h-9" />
+              <Input
+                value={partyInput}
+                onChange={e => setPartyInput(e.target.value)}
+                onCompositionStart={() => { composingPartyRef.current = true }}
+                onCompositionEnd={() => { composingPartyRef.current = false }}
+                onKeyDown={e => {
+                  if (e.key !== 'Enter') return
+                  if (shouldBlockEnter(e, composingPartyRef)) return
+                  send('party')
+                }}
+                placeholder="파티 채팅을 입력하세요..."
+                className="flex-1 border-white/10 bg-black/20 text-white placeholder:text-slate-400 text-sm h-9"
+              />
               <Button onClick={() => send('party')} size="sm" className="h-9 px-3 bg-purple-600 hover:bg-purple-700">전송</Button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../components/ui/button'
+import { login as loginApi, logout as logoutApi } from '@/http/authControllerApi'
 import { Card, CardContent } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog'
@@ -112,16 +113,23 @@ export default function DungeonMainPage() {
     } catch {}
   }, [isLoggedIn])
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     try {
-      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-        localStorage.setItem('dgt_logged_in', '1')
-      }
-    } catch {}
-    setIsLoggedIn(true)
+      await loginApi({ name: loginId, password: loginPw })
+      try {
+        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+          localStorage.setItem('dgt_logged_in', '1')
+        }
+      } catch {}
+      setIsLoggedIn(true)
+    } catch (e: any) {
+      const msg = e?.data?.msg || '로그인에 실패했습니다.'
+      alert(msg)
+    }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await logoutApi() } catch {}
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         localStorage.removeItem('dgt_logged_in')
@@ -172,6 +180,9 @@ export default function DungeonMainPage() {
                   </div>
                   <Button className="w-full h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleLogin} disabled={!canLogin}>로그인</Button>
                   <div className="text-center text-xs text-slate-400">아이디와 비밀번호를 입력하세요.</div>
+                  <div className="text-center text-xs text-slate-300 pt-1">
+                    회원이 아니신가요? <button className="text-blue-400 hover:underline" onClick={() => navigate('/dungeon/signup')}>회원가입</button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
