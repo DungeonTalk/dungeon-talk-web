@@ -11,6 +11,9 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `/v1/characters/${encodeURIComponent(id)}`,
     BY_MEMBER: (memberId: string) => `/v1/characters?memberId=${encodeURIComponent(memberId)}`,
     BASIC: (id: string) => `/v1/characters/basic/${encodeURIComponent(id)}`,
+    RACES: '/v1/characters/races',
+    BASE: '/v1/characters',
+    DETAIL_BY_MEMBER: (memberId: string) => `/v1/characters/detailByMember?memberId=${encodeURIComponent(memberId)}`,
   },
   ROOMS: {
     BASE: '/v1/rooms',

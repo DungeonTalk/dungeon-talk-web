@@ -4,13 +4,22 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { X, ChevronDown, ChevronRight, ArrowLeft, Wand2, Backpack } from 'lucide-react'
 import Tooltip from '@/components/tooltip'
+import * as Stomp from '@stomp/stompjs' // StompJS 임포트
+import SockJS from 'sockjs-client' // SockJS 임포트
+import { getMemberIdFromToken } from '@/http/client'
+import { getDetailedCharacterByMember } from '@/http/gameCharacterApi'
 
 interface ChatMessage {
-  id: number
+  id: string // 실제 메시지 ID는 UUID가 될 수 있으므로 string으로 변경
   user: string
   message: string
-  type: 'main' | 'party'
+  type: 'main' | 'party' | 'system' | 'user' | 'ai' | 'other' // 메시지 유형 확장
   timestamp: string
+  // 백엔드에서 올 수 있는 추가 필드
+  messageType?: 'USER' | 'AI' | 'SYSTEM' | 'TALK' | 'ENTER' | 'LEAVE'
+  senderId?: string
+  senderNickname?: string
+  content?: string
 }
 
 interface PartyItem { id: number; name: string; icon: string; effect: string; rarity: 'common'|'rare'|'epic'|'legendary'|'empty' }
@@ -38,18 +47,13 @@ export default function WebChatInterface() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const worldTitle = searchParams.get('world') || 'Dungeon Talk'
-  const myNickname = '메롱'
+  const [myNickname, setMyNickname] = useState('게스트') // 닉네임을 상태로 관리
+  const [myMemberId, setMyMemberId] = useState<string | null>(null) // 멤버 ID 추가
   const [utilityView, setUtilityView] = useState<'status' | 'party'>('status')
   const [isCoreOpen, setIsCoreOpen] = useState(false)
   const [isInvOpen, setIsInvOpen] = useState(false)
   const [isSkillsOpen, setIsSkillsOpen] = useState(false)
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 1, user: '시스템', message: '게임이 시작되었습니다.', type: 'main', timestamp: '14:30' },
-    { id: 2, user: '플레이어1', message: '안녕하세요!', type: 'main', timestamp: '14:31' },
-    { id: 3, user: '시스템', message: '게임이 시작되었습니다.', type: 'party', timestamp: '14:31' },
-    { id: 4, user: '파티원A', message: '보스 준비됐나요?', type: 'party', timestamp: '14:32' },
-    { id: 5, user: '파티원B', message: '네, 준비 완료!', type: 'party', timestamp: '14:33' },
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>([]) // 초기 메시지 빈 배열로 시작
   const [mainInput, setMainInput] = useState('')
   const [partyInput, setPartyInput] = useState('')
   const [showInventoryModal, setShowInventoryModal] = useState(false)
@@ -60,26 +64,12 @@ export default function WebChatInterface() {
   const [showGameOver, setShowGameOver] = useState(false)
   const END_MAIN_COUNT = 10
 
-  // IME(KR) 입력 중 Enter 전송 방지용
-  const composingMainRef = useRef(false)
-  const composingPartyRef = useRef(false)
-  const shouldBlockEnter = (e: any, composingRef: { current: boolean }) => {
-    // React/Safari/IME 조합 보호
-    if (e?.isComposing || e?.nativeEvent?.isComposing) return true
-    if (composingRef.current) return true
-    if (e?.keyCode === 229) return true
-    return false
-  }
+  // STOMP 클라이언트 인스턴스 (useRef로 관리하여 컴포넌트 리렌더링 시에도 동일 인스턴스 유지)
+  const matchingStompClient = useRef<Stomp.Client | null>(null)
+  const aiStompClient = useRef<Stomp.Client | null>(null)
+  const partyStompClient = useRef<Stomp.Client | null>(null)
 
-  useEffect(() => {
-    if (showInventoryModal) setSelectedInventoryIdx(0)
-  }, [showInventoryModal])  
-
-  useEffect(() => {
-    if (showSkillsModal) setSelectedSkillIdx(0)
-  }, [showSkillsModal])
-
-  // 채팅 스크롤: 최신 메시지가 보이도록 자동 스크롤
+  // 채팅 스크롤: 최신 메시지가 보이도록 자동 스크롤 (복구)
   const mainChatRef = useRef<HTMLDivElement>(null)
   const partyChatRef = useRef<HTMLDivElement>(null)
   const scrollToBottom = (el: HTMLDivElement | null) => {
@@ -91,7 +81,7 @@ export default function WebChatInterface() {
     scrollToBottom(partyChatRef.current)
   }, [messages])
 
-  // 턴 제한: 마지막 입력 후 60초 내 미입력 시 자동 턴 종료 로그
+  // 턴 제한: 마지막 입력 후 60초 내 미입력 시 자동 턴 종료 로그 (관련 로직은 일단 유지)
   const TURN_LIMIT_MS = 60_000
   const turnTimeoutRef = useRef<number | null>(null)
   const clearTurnTimer = () => {
@@ -105,16 +95,17 @@ export default function WebChatInterface() {
     turnTimeoutRef.current = window.setTimeout(() => {
       const ts = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
       setMessages(prev => prev.concat(
-        { id: Date.now(), user: '시스템', message: `${myNickname}의 입력 시간 초과로 턴이 종료되었습니다.`, type: 'main', timestamp: ts }
+        { id: String(Date.now()), user: '시스템', message: `${myNickname}의 입력 시간 초과로 턴이 종료되었습니다.`, type: 'main', timestamp: ts }
       ))
       turnTimeoutRef.current = null
     }, TURN_LIMIT_MS)
   }
   useEffect(() => () => clearTurnTimer(), [])
+
+  // 복구: 임시 목업 데이터
   const [showMember, setShowMember] = useState<PartyMember | null>(null)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const myCombat = { physicalAttack: 9, magicalAttack: 11, evade: 12, accuracy: 18, criticalRate: 6, diceSuccess: 1 }
-
   const partyMembers: PartyMember[] = [
     {
       id: 'A', name: '파티원A', level: 5, race: '엘프', status: '정상',
@@ -145,7 +136,7 @@ export default function WebChatInterface() {
     },
   ]
 
-  // 고정 슬롯(5개)로 패딩된 배열 반환
+  // 고정 슬롯(5개)로 패딩된 배열 반환 (복구)
   const getInventorySlots = (items: PartyItem[]) => {
     const filled = items.slice(0, 5)
     while (filled.length < 5) {
@@ -161,41 +152,225 @@ export default function WebChatInterface() {
     return filled
   }
 
+  // IME(KR) 입력 중 Enter 전송 방지용
+  const composingMainRef = useRef(false)
+  const composingPartyRef = useRef(false)
+  const shouldBlockEnter = (e: any, composingRef: { current: boolean }) => {
+    // React/Safari/IME 조합 보호
+    if (e?.isComposing || e?.nativeEvent?.isComposing) return true
+    if (composingRef.current) return true
+    if (e?.keyCode === 229) return true
+    return false
+  }
+
+  useEffect(() => {
+    const token = localStorage.getItem('authToken') // JWT 토큰 가져오기
+    const memberId = getMemberIdFromToken()
+    setMyMemberId(memberId) // 멤버 ID 상태 업데이트
+
+    // 로그인한 유저의 닉네임 불러오기
+    const fetchMyNickname = async () => {
+      if (memberId) {
+        try {
+          const { data } = await getDetailedCharacterByMember(memberId)
+          if (data?.data?.name) {
+            setMyNickname(data.data.name) // 백엔드에서 받은 닉네임으로 업데이트
+          }
+        } catch (e) {
+          console.error('Failed to fetch my nickname:', e)
+        }
+      }
+    }
+    fetchMyNickname()
+
+    // 웹소켓 연결 함수 (SockJS 사용)
+    const connectWebSocket = (clientRef: React.MutableRefObject<Stomp.Client | null>, path: string, onConnectCallback: (frame: Stomp.Frame) => void) => {
+      if (!token || !memberId) {
+        console.error('WebSocket 연결 실패: 인증 토큰 또는 멤버 ID가 없습니다.')
+        return
+      }
+
+      if (clientRef.current && clientRef.current.connected) {
+        console.log(`WebSocket(${path}) 이미 연결됨.`) 
+        return
+      }
+      
+      try {
+        const socket = new SockJS(`http://localhost:8080${path}?token=${encodeURIComponent(token)}&memberId=${encodeURIComponent(memberId)}`);
+        const client = Stomp.over(socket);
+
+        client.connect({}, (frame) => {
+          console.log(`Connected to ${path}: ` + frame);
+          onConnectCallback(frame); // 연결 성공 콜백 실행
+        }, (error) => {
+          console.error(`WebSocket(${path}) 연결 실패: `, error);
+          if (error.headers && error.headers.message === 'UNAUTHORIZED') {
+            alert('인증이 만료되었습니다. 다시 로그인해주세요.');
+            navigate('/dungeon'); // 로그인 페이지로 리다이렉트
+          }
+        });
+
+        clientRef.current = client;
+      } catch (error) {
+        console.error(`WebSocket(${path}) 오류: `, error);
+      }
+    }
+
+    // 매칭 웹소켓 연결 (party-finding 페이지에서만 사용될 수 있음)
+    // connectWebSocket(matchingStompClient, '/ws-chat', (frame) => {
+    //   const subscriptionPath = `/sub/matching/user/${memberId}`;
+    //   console.log('매칭 알림 구독:', subscriptionPath);
+    //   matchingStompClient.current?.subscribe(subscriptionPath, (message) => {
+    //     console.log('매칭 메시지 수신:', message.body);
+    //     // handleMatchingMessage(JSON.parse(message.body)); // 매칭 메시지 처리 로직
+    //   });
+    // });
+
+    // AI 채팅 웹소켓 연결
+    // 현재는 chat-demo 페이지이므로 aiGameRoomId, partyRoomId는 임시 값 사용 또는 매칭 후 받아와야 함
+    const aiGameRoomId = 'temp-ai-room-id'; // 실제는 매칭 후 백엔드에서 받아와야 함
+    const partyRoomId = 'temp-party-room-id'; // 실제는 매칭 후 백엔드에서 받아와야 함
+
+    connectWebSocket(aiStompClient, `/ws-chat?roomId=${encodeURIComponent(aiGameRoomId)}`, (frame) => {
+      aiStompClient.current?.subscribe(`/sub/aichat/room/${aiGameRoomId}`, (message) => {
+        const receivedMessage: ChatMessage = JSON.parse(message.body);
+        // AI 메시지 처리 (dungeon-game.html의 handleAiMessage 참고)
+        // 필터링 및 UI 업데이트 로직 필요
+        setMessages(prev => {
+          // 자신의 메시지는 필터링
+          if (receivedMessage.messageType === 'USER' && receivedMessage.senderId === memberId) {
+            return prev;
+          }
+          return [...prev, {
+            id: receivedMessage.id || String(Date.now()),
+            user: receivedMessage.senderNickname || 'AI', // AI 또는 다른 사용자 닉네임
+            message: receivedMessage.content || receivedMessage.message || '',
+            type: receivedMessage.messageType === 'AI' ? 'ai' : (receivedMessage.messageType === 'SYSTEM' ? 'system' : 'other'),
+            timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+          }]
+        })
+      });
+      // AI 채팅방 입장 메시지 (선택 사항)
+      aiStompClient.current?.publish({
+        destination: '/pub/room/ai/enter', // 백엔드에 따라 엔드포인트 다를 수 있음
+        body: JSON.stringify({
+          roomId: aiGameRoomId,
+          senderId: memberId,
+          senderNickname: myNickname,
+          messageType: 'ENTER',
+          content: `${myNickname} 님이 AI 게임방에 입장했습니다.`
+        }),
+      });
+    });
+
+    connectWebSocket(partyStompClient, `/ws-chat?roomId=${encodeURIComponent(partyRoomId)}`, (frame) => {
+      partyStompClient.current?.subscribe(`/sub/chat/room/${partyRoomId}`, (message) => {
+        const receivedMessage: ChatMessage = JSON.parse(message.body);
+        // 파티 메시지 처리 (dungeon-game.html의 handleUserMessage 참고)
+        setMessages(prev => {
+          // 자신의 메시지는 필터링
+          if (receivedMessage.senderId === memberId) {
+            return prev;
+          }
+          return [...prev, {
+            id: receivedMessage.id || String(Date.now()),
+            user: receivedMessage.senderNickname || '파티원', // 파티원 닉네임
+            message: receivedMessage.content || receivedMessage.message || '',
+            type: 'party', // 항상 파티 채팅
+            timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+          }]
+        })
+      });
+      // 파티 채팅방 입장 메시지 (선택 사항)
+      partyStompClient.current?.publish({
+        destination: '/pub/room/chat/enter', // 백엔드에 따라 엔드포인트 다를 수 있음
+        body: JSON.stringify({
+          roomId: partyRoomId,
+          senderId: memberId,
+          senderNickname: myNickname,
+          messageType: 'ENTER',
+          content: `${myNickname} 님이 파티 채팅방에 입장했습니다.`
+        }),
+      });
+    });
+
+    // 컴포넌트 언마운트 시 웹소켓 연결 해제
+    return () => {
+      aiStompClient.current?.deactivate();
+      partyStompClient.current?.deactivate();
+      matchingStompClient.current?.deactivate();
+      console.log('WebSocket 연결 모두 해제됨.');
+    }
+  }, [myNickname, myMemberId]) // myNickname과 myMemberId 변경 시 재실행
+
   const send = (target: 'main' | 'party') => {
     if (target === 'main' && mainEnded) return
     const text = target === 'main' ? mainInput.trim() : partyInput.trim()
     if (!text) return
-    const msg: ChatMessage = {
-      id: Date.now(),
-      user: myNickname,
-      message: text,
-      type: target,
-      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-    }
-    if (target === 'main') {
-      const myMainCount = messages.reduce((n, m) => n + (m.user === myNickname && m.type === 'main' ? 1 : 0), 0)
-      const nextCount = myMainCount + 1
-      if (nextCount >= END_MAIN_COUNT) {
-        const ts = msg.timestamp
-        const sys: ChatMessage = { id: msg.id + 1, user: '시스템', message: `메인 채팅 ${END_MAIN_COUNT}회 도달로 게임이 종료되었습니다.`, type: 'main', timestamp: ts }
-        setMessages(prev => prev.concat(msg, sys))
-        setMainEnded(true)
-        setShowGameOver(true)
-        clearTurnTimer()
+
+    const roomId = target === 'main' ? 'temp-ai-room-id' : 'temp-party-room-id'; // 실제 room ID로 변경 필요
+    const destination = target === 'main' ? '/pub/room/ai/send' : '/pub/room/chat/send'; // dungeon-game.html 엔드포인트 참조
+    const client = target === 'main' ? aiStompClient.current : partyStompClient.current;
+
+    if (client && client.connected && myMemberId) {
+      const msgPayload: any = {
+        roomId: roomId,
+        senderId: myMemberId, // 나의 멤버 ID 사용
+        senderNickname: myNickname, // 나의 닉네임 사용
+        content: text, // 메시지 내용
+        messageType: 'USER', // 사용자 메시지 타입
+      };
+
+      if (target === 'main') {
+        // AI 채팅에만 필요한 필드 추가
+        msgPayload.roomType = 'AI_GAME';
+        msgPayload.aiGameRoomId = roomId;
+        msgPayload.gameActionType = 'CHAT'; // 또는 'ACTION'
+        msgPayload.turnNumber = 1; // 턴 넘버 동적으로 관리 필요
       } else {
-        setMessages(prev => prev.concat(msg))
+        // 파티 채팅에만 필요한 필드 추가
+        msgPayload.roomType = 'PLAYER_CHAT';
+        msgPayload.chatRoomId = roomId;
       }
+
+      client.publish({
+        destination: destination,
+        body: JSON.stringify(msgPayload),
+      });
+
+      // 내가 보낸 메시지는 즉시 UI에 추가
+      setMessages(prev => [
+        ...prev,
+        {
+          id: String(Date.now()), // 임시 ID
+          user: myNickname,
+          message: text,
+          type: target === 'main' ? 'main' : 'party', // UI 표시용 타입
+          timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        }
+      ]);
+
     } else {
-      setMessages(prev => prev.concat(msg))
+      console.warn('STOMP client not connected or member ID is missing. Message not sent.');
+      // 연결되지 않았을 경우를 대비하여 하드코딩된 메시지도 추가할 수 있으나, 여기서는 생략
+      setMessages(prev => [
+        ...prev,
+        {
+          id: String(Date.now()),
+          user: myNickname,
+          message: `(오프라인 메시지): ${text}`,
+          type: target === 'main' ? 'main' : 'party',
+          timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        }
+      ]);
     }
-    target === 'main' ? setMainInput('') : setPartyInput('')
-    // 즉시 스크롤 반영
+
+    target === 'main' ? setMainInput('') : setPartyInput('');
     requestAnimationFrame(() => {
-      if (target === 'main') scrollToBottom(mainChatRef.current)
-      else scrollToBottom(partyChatRef.current)
-    })
-    // 다음 입력까지 타이머 재시작(메인 채팅에만 적용)
-    if (target === 'main' && !mainEnded) scheduleTurnTimeout()
+      if (target === 'main') scrollToBottom(mainChatRef.current);
+      else scrollToBottom(partyChatRef.current);
+    });
+    if (target === 'main' && !mainEnded) scheduleTurnTimeout();
   }
 
   // 동일 사용자/동일 시각(분 단위)의 연속 메시지를 하나로 묶는다
@@ -296,8 +471,8 @@ export default function WebChatInterface() {
 
         {/* 우측 패널: 유틸 + 파티 채팅 */}
         <div className="rounded-2xl bg-slate-800 border border-slate-700 flex flex-col h-full min-h-0 overflow-hidden">
-          {/* 유틸 블록들: 탭 구성 */
-          /* 탭: 내 상태, 파티원 상태. 인벤토리/스킬은 내 상태 탭 내부 아이콘으로 오픈 */}
+          {/* 유틸 블록들: 탭 구성 */}
+          {/* 탭: 내 상태, 파티원 상태. 인벤토리/스킬은 내 상태 탭 내부 아이콘으로 오픈 */}
           <div className="p-4 border-b border-slate-700 h-64 min-h-0 overflow-hidden flex flex-col">
             {/* 세그먼트 컨트롤 */}
             <div className="w-full rounded-full bg-slate-800 border border-slate-700 p-1 text-slate-300 grid grid-cols-2 gap-1">
@@ -322,7 +497,7 @@ export default function WebChatInterface() {
                   {/* 상단: 닉네임/레벨 + 아이콘 */}
                   <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
                     <div>
-                      <div>닉네임: <span className="text-white">메롱</span></div>
+                      <div>닉네임: <span className="text-white">{myNickname}</span></div>
                       <div className="mt-1 text-slate-300">레벨: <span className="text-white">1</span></div>
                     </div>
                     <div className="flex items-center gap-3">

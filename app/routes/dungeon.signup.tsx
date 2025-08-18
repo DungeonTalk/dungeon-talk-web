@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { Card, CardContent } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
 import { register as registerApi } from '@/http/memberControllerApi'
 import { login as loginApi } from '@/http/authControllerApi'
+import { getCharacterRaces, createCharacter } from '@/http/gameCharacterApi'
+import { getMemberIdFromToken } from '@/http/client'
 
 export default function DungeonSignupPage() {
   const navigate = useNavigate()
@@ -13,12 +15,8 @@ export default function DungeonSignupPage() {
   const [password2, setPassword2] = useState('')
   const [nickname, setNickname] = useState('')
   const [error, setError] = useState('')
-  const [race, setRace] = useState('human')
-  const races = [
-    { value: 'human', label: '인간' },
-    { value: 'elf', label: '엘프' },
-    { value: 'dwarf', label: '드워프' },
-  ]
+  const [race, setRace] = useState('') // 초기값을 빈 문자열로 설정
+  const [availableRaces, setAvailableRaces] = useState<{ value: string; label: string }[]>([])
   const raceDescriptions: Record<string, string> = {
     human:
       '인간은 평균적인 능력치를 지니고 있으며 새로운 환경에 빠르게 적응하는 종족입니다. 전투, 탐험, 사회적 상호작용 등 어떤 역할에도 무난하게 참여할 수 있어 파티의 빈자리를 유연하게 메우기 좋습니다. 초심자에게 특히 추천되는 안정적인 선택입니다.',
@@ -27,6 +25,23 @@ export default function DungeonSignupPage() {
     dwarf:
       '드워프는 마법적 재능은 낮지만 단단한 체력과 강한 의지를 갖춘 종족입니다. 근접 전투와 방어, 장비 제작과 같은 실용 영역에서 탁월한 능력을 발휘합니다. 꾸준함과 끈기를 바탕으로 난관을 정면 돌파하는 플레이 스타일에 적합한 선택입니다.',
   }
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const { data } = await getCharacterRaces()
+        console.log('Fetched race data:', data)
+        if (data?.data && data.data.length > 0) {
+          const fetchedRaces = data.data.map(r => ({ value: r, label: r })) // 백엔드에서 받은 종족 이름을 그대로 사용
+          setAvailableRaces(fetchedRaces)
+          setRace(fetchedRaces[0].value) // 첫 번째 종족을 기본값으로 선택
+        }
+      } catch (e) {
+        console.error('Failed to fetch races:', e)
+        setError('종족 정보를 불러오지 못했습니다.')
+      }
+    })()
+  }, [])
 
   const isValidUserId = /^[A-Za-z0-9]{1,20}$/.test(userId)
   const isValidNickname = nickname.trim().length > 0 && nickname.trim().length <= 6
@@ -53,6 +68,16 @@ export default function DungeonSignupPage() {
     try {
       await registerApi({ name: userId, nickName: nickname, password })
       await loginApi({ name: userId, password })
+
+      const memberId = getMemberIdFromToken()
+
+      if (memberId) {
+        await createCharacter({
+          memberId: memberId,
+          name: nickname,
+          raceTypeId: race,
+        })
+      }
       try {
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           localStorage.setItem('dgt_logged_in', '1')
@@ -110,9 +135,9 @@ export default function DungeonSignupPage() {
               </div>
               <div>
                 <div className="text-slate-300 text-sm mb-1">종족 선택</div>
-                <div className="flex gap-2 flex-nowrap overflow-x-auto">
-                  {races.map(r => (
-                    <label key={r.value} className={`flex items-center gap-2 rounded-md border px-3 h-10 w-28 flex-shrink-0 cursor-pointer select-none ${race === r.value ? 'border-blue-400 bg-blue-500/10 text-white' : 'border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600'}`}>
+                <div className="flex gap-2 flex-wrap">
+                  {availableRaces.map(r => (
+                    <label key={r.value} className={`flex items-center gap-2 rounded-md border px-3 h-10 flex-1 cursor-pointer select-none ${race === r.value ? 'border-blue-400 bg-blue-500/10 text-white' : 'border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600'}`}>
                       <input
                         type="radio"
                         name="race"
@@ -125,7 +150,7 @@ export default function DungeonSignupPage() {
                   ))}
                 </div>
                 <div className="mt-2 text-xs text-slate-300">
-                  {raceDescriptions[race]}
+                  {raceDescriptions[race] || '종족 설명을 불러오는 중...'}
                 </div>
               </div>
               {error && <div className="text-xs text-red-400">{error}</div>}

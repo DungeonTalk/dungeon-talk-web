@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { Button } from '../components/ui/button'
 import { login as loginApi, logout as logoutApi } from '@/http/authControllerApi'
 import { getMemberIdFromToken } from '@/http/client'
-import { getCharacterByMember } from '@/http/gameCharacterApi'
+import { getCharacterByMember, getCharacterRaces, getDetailedCharacterByMember } from '@/http/gameCharacterApi' // getDetailedCharacterByMember 추가
 import { Card, CardContent } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog'
@@ -123,6 +123,7 @@ export default function DungeonMainPage() {
   const [loginPw, setLoginPw] = useState('')
   const [isSaveOpen, setIsSaveOpen] = useState(false)
   const canLogin = loginId.trim().length > 0 && loginPw.trim().length > 0
+  const [availableRaces, setAvailableRaces] = useState<Record<string, string>>({}); // raceTypeId를 raceName으로 매핑하기 위한 상태 추가
 
   // 새로고침 시 로그인 유지
   useEffect(() => {
@@ -134,6 +135,26 @@ export default function DungeonMainPage() {
     } catch {}
   }, [])
 
+  useEffect(() => {
+    // 종족 목록을 가져오는 함수
+    const fetchRaces = async () => {
+      try {
+        const { data } = await getCharacterRaces();
+        if (data?.data) {
+          const raceMap: Record<string, string> = {};
+          data.data.forEach(raceId => {
+            // 여기서는 raceId가 곧 raceName이므로 그대로 사용합니다. 백엔드에서 별도의 raceName 필드를 주지 않음.
+            raceMap[raceId] = raceId; 
+          });
+          setAvailableRaces(raceMap);
+        }
+      } catch (e) {
+        console.error('Failed to fetch races for main page:', e);
+      }
+    };
+    fetchRaces();
+  }, []); // 컴포넌트 마운트 시 한 번만 실행
+
   // 로그인 직후 캐릭터 정보 로드 및 저장된 보너스 스탯 복원
   useEffect(() => {
     if (!isLoggedIn) return
@@ -141,15 +162,27 @@ export default function DungeonMainPage() {
       try {
         const memberId = getMemberIdFromToken()
         if (memberId) {
-          const { data } = await getCharacterByMember(memberId)
+          // 변경: getDetailedCharacterByMember 호출
+          const { data } = await getDetailedCharacterByMember(memberId)
           const c = data?.data
           if (c) {
+            console.log('Detailed character data received:', c); // (추가) 수신 데이터 로그
             // 기본 표시에 반영 가능한 부분이 있으면 여기서 상태 업데이트
             // 현재 UI의 닉네임/레벨/종족 자리에 반영 위해 로컬 상태를 추가
-            setProfile({ nickname: c.name || '모험가', level: c.level || 1, race: c.race || '인간', hp: c.hp || 100, mp: c.mp || 100 })
+            setProfile({ 
+              nickname: c.name || '-', // 백엔드에서 name 필드 넘어오면 사용, 아니면 '-'
+              level: c.playerLevel || undefined, 
+              race: c.raceName || '-', // (수정) raceTypeId 매핑 대신 raceName 직접 사용
+              hp: c.hp || undefined, 
+              mp: c.mp || undefined,
+              physicalAttack: c.physicalAttack || undefined,
+              magicAttack: c.magicAttack || undefined
+            })
           }
         }
-      } catch {}
+      } catch (e) {
+        console.error('Failed to fetch detailed character data:', e);
+      }
       try {
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
           const raw = localStorage.getItem('dgt_stats')
@@ -176,7 +209,15 @@ export default function DungeonMainPage() {
   }, [isLoggedIn])
 
   // 캐릭터 프로필 표시용 상태
-  const [profile, setProfile] = useState({ nickname: '모험가', level: 1, race: '인간', hp: 100, mp: 100 })
+  const [profile, setProfile] = useState({
+    nickname: undefined,
+    level: undefined,
+    race: undefined,
+    hp: undefined,
+    mp: undefined,
+    physicalAttack: undefined,
+    magicAttack: undefined,
+  })
 
   const handleLogin = async () => {
     // 잠금 확인
@@ -293,25 +334,25 @@ export default function DungeonMainPage() {
                 <div className="grid grid-cols-3 gap-3">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">닉네임</span>
-                  <span className="font-semibold text-white">{profile.nickname}</span>
+                  <span className="font-semibold text-white">{profile.nickname || '-'}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">레벨</span>
-                  <span className="font-semibold text-white">{profile.level}</span>
+                  <span className="font-semibold text-white">{profile.level || '-'}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">종족</span>
-                  <span className="font-semibold text-white">{profile.race}</span>
+                  <span className="font-semibold text-white">{profile.race || '-'}</span>
                 </div>
               </div>
                 <div className="grid grid-cols-2 gap-3">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">HP</span>
-                  <span className="font-semibold text-green-400">{profile.hp}/{profile.hp}</span>
+                  <span className="font-semibold text-green-400">{profile.hp || '-'}/{profile.hp || '-'}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-300">MP</span>
-                  <span className="font-semibold text-blue-400">{profile.mp}/{profile.mp}</span>
+                  <span className="font-semibold text-blue-400">{profile.mp || '-'}/{profile.mp || '-'}</span>
                 </div>
               </div>
             </div>
@@ -322,11 +363,11 @@ export default function DungeonMainPage() {
             <div className="grid grid-cols-2 gap-3 mb-2">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-300">물리 공격력</span>
-                <span className="font-semibold text-orange-400">10</span>
+                <span className="font-semibold text-orange-400">{profile.physicalAttack || '-'}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-300">마법 공격력</span>
-                <span className="font-semibold text-purple-400">10</span>
+                <span className="font-semibold text-purple-400">{profile.magicAttack || '-'}</span>
               </div>
             </div>
             
