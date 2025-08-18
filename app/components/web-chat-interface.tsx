@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { X, ChevronDown, ChevronRight, ArrowLeft, Wand2, Backpack } from 'lucide-react'
 import Tooltip from '@/components/tooltip'
 import * as Stomp from '@stomp/stompjs' // StompJS 임포트
-import SockJS from 'sockjs-client' // SockJS 임포트
+// import SockJS from 'sockjs-client' // (삭제) SockJS 대신 네이티브 WebSocket 사용
 import { getMemberIdFromToken } from '@/http/client'
 import { getDetailedCharacterByMember } from '@/http/gameCharacterApi'
 
@@ -196,8 +196,12 @@ export default function WebChatInterface() {
       }
       
       try {
-        const socket = new SockJS(`http://localhost:8080${path}?token=${encodeURIComponent(token)}&memberId=${encodeURIComponent(memberId)}`);
+        // SockJS 대신 네이티브 WebSocket 사용
+        const socket = new WebSocket(`ws://localhost:8080${path}?token=${encodeURIComponent(token)}&memberId=${encodeURIComponent(memberId)}`);
         const client = Stomp.over(socket);
+
+        // Stomp.Client의 webSocketFactory는 SockJS 사용 시에만 필요하므로 제거
+        // client.webSocketFactory = () => { return socket; }; // 이 부분은 Stomp.over(socket)으로 대체되므로 필요 없음
 
         client.connect({}, (frame) => {
           console.log(`Connected to ${path}: ` + frame);
