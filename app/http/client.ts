@@ -18,14 +18,13 @@ export function getMemberIdFromToken(): string | null {
 }
 
 // TokenManager로 위임하는 호환성 함수들
-export function setAuthTokens(tokens: { accessToken?: string | null; refreshToken?: string | null }) {
+export function setAuthTokens(tokens: { accessToken?: string | null }) {
   try {
     if (tokens.accessToken) {
       const userData = TokenManager.getUserData() || { id: 'unknown', email: 'unknown' }
       TokenManager.setTokens(
         {
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken || undefined
+          accessToken: tokens.accessToken
         },
         userData
       )

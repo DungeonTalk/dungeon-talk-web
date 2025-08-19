@@ -29,14 +29,14 @@ export default function SignupPage() {
       '드워프는 마법적 재능은 낮지만 단단한 체력과 강한 의지를 갖춘 종족입니다. 근접 전투와 방어, 장비 제작과 같은 실용 영역에서 탁월한 능력을 발휘합니다. 꾸준함과 끈기를 바탕으로 난관을 정면 돌파하는 플레이 스타일에 적합한 선택입니다.',
   }
 
-  const isValidUserId = /^[A-Za-z0-9]{1,20}$/.test(userId)
+  const isValidUserId = /^[A-Za-z0-9가-힣]{1,20}$/.test(userId)
   const isValidNickname = nickname.trim().length > 0 && nickname.trim().length <= 6
   const canSubmit = isValidUserId && password && password2 && isValidNickname && password === password2 && race
 
   const handleSubmit = async () => {
     setError('')
     if (!isValidUserId) {
-      setError('아이디는 영문/숫자만 가능하며 최대 20자입니다.')
+      setError('아이디는 영문/숫자/한글만 가능하며 최대 20자입니다.')
       return
     }
     if (!isValidNickname) {
@@ -78,14 +78,14 @@ export default function SignupPage() {
                   value={userId}
                   maxLength={20}
                   onChange={e => {
-                    const alnum = e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)
+                    const alnum = e.target.value.replace(/[^A-Za-z0-9가-힣]/g, '').slice(0, 20)
                     setUserId(alnum)
                   }}
-                  placeholder="영문/숫자, 최대 20자"
+                  placeholder="영문/숫자/한글, 최대 20자"
                   className="bg-black/20 border-white/10 text-white h-9"
                 />
                 {!isValidUserId && userId.length > 0 && (
-                  <div className="mt-1 text-[11px] text-red-400">아이디는 영문/숫자만 가능하며 최대 20자입니다.</div>
+                  <div className="mt-1 text-[11px] text-red-400">아이디는 영문/숫자/한글만 가능하며 최대 20자입니다.</div>
                 )}
               </div>
               <div>

@@ -1,6 +1,5 @@
 interface TokenData {
   accessToken: string;
-  refreshToken?: string;
   expiresAt?: number;
   tokenType?: string;
 }
@@ -17,7 +16,7 @@ interface UserData {
  */
 export class TokenManager {
   private static readonly ACCESS_TOKEN_KEY = 'dgt_access_token';
-  private static readonly REFRESH_TOKEN_KEY = 'dgt_refresh_token';
+  // refreshToken은 HttpOnly 쿠키로 관리됨
   private static readonly TOKEN_EXPIRES_KEY = 'dgt_token_expires';
   private static readonly USER_INFO_KEY = 'dgt_user_info';
   private static readonly LOGGED_IN_KEY = 'dgt_logged_in';
@@ -44,9 +43,7 @@ export class TokenManager {
       localStorage.setItem(this.USER_INFO_KEY, JSON.stringify(userData));
       localStorage.setItem(this.LOGGED_IN_KEY, '1');
 
-      if (tokenData.refreshToken) {
-        localStorage.setItem(this.REFRESH_TOKEN_KEY, tokenData.refreshToken);
-      }
+      // refreshToken은 백엔드에서 HttpOnly 쿠키로 설정됨
 
       if (tokenData.expiresAt) {
         localStorage.setItem(this.TOKEN_EXPIRES_KEY, tokenData.expiresAt.toString());
@@ -82,23 +79,11 @@ export class TokenManager {
   }
 
   /**
-   * 리프레시 토큰 반환
+   * 리프레시 토큰은 HttpOnly 쿠키로 관리되므로 직접 접근 불가
    */
-  static getRefreshToken(): string | null {
-    try {
-      if (this.tokenData?.refreshToken) {
-        return this.tokenData.refreshToken;
-      }
-
-      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-        return localStorage.getItem(this.REFRESH_TOKEN_KEY);
-      }
-
-      return null;
-    } catch (error) {
-      console.error('[TokenManager] 리프레시 토큰 조회 실패:', error);
-      return null;
-    }
+  static getRefreshToken(): null {
+    // refreshToken은 HttpOnly 쿠키로 관리되어 JavaScript에서 직접 접근 불가
+    return null;
   }
 
   /**
@@ -196,15 +181,9 @@ export class TokenManager {
         return await this.refreshPromise;
       }
 
-      const refreshToken = this.getRefreshToken();
-      if (!refreshToken) {
-        console.warn('[TokenManager] 리프레시 토큰이 없습니다.');
-        return false;
-      }
-
       console.log('[TokenManager] 토큰 갱신 시작');
       
-      this.refreshPromise = this.performTokenRefresh(refreshToken);
+      this.refreshPromise = this.performTokenRefresh();
       const result = await this.refreshPromise;
       
       this.refreshPromise = null;
@@ -219,15 +198,16 @@ export class TokenManager {
   /**
    * 실제 토큰 갱신 로직
    */
-  private static async performTokenRefresh(refreshToken: string): Promise<boolean> {
+  private static async performTokenRefresh(): Promise<boolean> {
     try {
-      // TODO: 실제 API 호출로 교체 필요
-      const response = await fetch('/api/auth/refresh', {
+      // refreshToken은 쿠키로 자동 전송됨
+      const response = await fetch('http://localhost:8080/v1/auth/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ refreshToken }),
+        credentials: 'include', // 쿠키 포함
+        body: JSON.stringify({}), // refreshToken은 쿠키로 전송됨
       });
 
       if (!response.ok) {
@@ -239,7 +219,6 @@ export class TokenManager {
       if (data.accessToken) {
         const newTokenData: TokenData = {
           accessToken: data.accessToken,
-          refreshToken: data.refreshToken || refreshToken,
           expiresAt: data.expiresAt,
           tokenType: data.tokenType || 'Bearer'
         };
@@ -271,7 +250,7 @@ export class TokenManager {
       // localStorage 클리어
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         localStorage.removeItem(this.ACCESS_TOKEN_KEY);
-        localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+        // refreshToken 쿠키는 서버에서 삭제 처리
         localStorage.removeItem(this.TOKEN_EXPIRES_KEY);
         localStorage.removeItem(this.USER_INFO_KEY);
         localStorage.removeItem(this.LOGGED_IN_KEY);
@@ -342,13 +321,12 @@ export class TokenManager {
 
       // 새로운 토큰 방식도 확인
       const accessToken = localStorage.getItem(this.ACCESS_TOKEN_KEY);
-      const refreshToken = localStorage.getItem(this.REFRESH_TOKEN_KEY);
+      // refreshToken은 쿠키로 관리됨
       const expiresAt = localStorage.getItem(this.TOKEN_EXPIRES_KEY);
 
       if (accessToken) {
         this.tokenData = {
           accessToken,
-          refreshToken: refreshToken || undefined,
           expiresAt: expiresAt ? parseInt(expiresAt, 10) : undefined,
         };
         console.log('[TokenManager] 초기화 완료 - 새로운 토큰 방식');

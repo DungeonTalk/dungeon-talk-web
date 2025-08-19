@@ -8,8 +8,8 @@ export const login = async (data: AuthLoginRequest): Promise<{ data: RsDataAuthL
   const payload = res.data?.data as any
   if (payload) {
     const accessToken = payload.accessToken as string | undefined
-    const refreshToken = payload.refreshToken as string | undefined
-    if (accessToken || refreshToken) setAuthTokens({ accessToken: accessToken || null, refreshToken: refreshToken || null })
+    // refreshToken은 백엔드에서 HttpOnly 쿠키로 자동 설정됨
+    if (accessToken) setAuthTokens({ accessToken: accessToken || null })
   }
   return res
 }
@@ -20,8 +20,8 @@ export const logout = async (): Promise<{ data: RsDataString }> => {
   return { data: { resultCode: 'S-200', statusCode: 200, msg: 'LOGOUT', data: 'OK' } as unknown as RsDataString }
 }
 
-// refreshToken
-export const refreshToken = (data: { refreshToken: string }): Promise<{ data: RsDataJwtTokenResponse }> =>
-  apiClient.post(API_ENDPOINTS.AUTH.REFRESH, data)
+// refreshToken - 쿠키로 자동 전송됨
+export const refreshToken = (): Promise<{ data: RsDataJwtTokenResponse }> =>
+  apiClient.post(API_ENDPOINTS.AUTH.REFRESH, {})
 
 
