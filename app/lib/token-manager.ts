@@ -7,6 +7,7 @@ interface TokenData {
 interface UserData {
   id: string;
   email: string;
+  nickname?: string;
   [key: string]: any;
 }
 
