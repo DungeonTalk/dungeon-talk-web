@@ -13,7 +13,7 @@ export const API_ENDPOINTS = {
     BASIC: (id: string) => `/v1/characters/basic/${encodeURIComponent(id)}`,
     RACES: '/v1/characters/races',
     BASE: '/v1/characters',
-    DETAIL_BY_MEMBER: (memberId: string) => `/v1/characters/detailByMember?memberId=${encodeURIComponent(memberId)}`,
+    DETAIL_BY_MEMBER: (memberId: string) => `/v1/characters/detail-by-member/${encodeURIComponent(memberId)}`,
   },
   ROOMS: {
     BASE: '/v1/rooms',

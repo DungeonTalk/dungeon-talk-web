@@ -5,18 +5,10 @@
  * 임시 HTML을 반환하도록 설정합니다.
  */
 
-import type { AppLoadContext } from "@remix-run/cloudflare";
-
-interface AppLoadContextFunctions {
-  // Define any functions or properties you expect in your AppLoadContext
-  // For example: `env: Env` if you are using Cloudflare Workers Env
-}
-
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
-  remixContext: AppLoadContext<AppLoadContextFunctions>
 ) {
   // SSR 로직을 완전히 비활성화하고, 클라이언트에서 로드될 최소한의 HTML을 반환합니다.
   const tempHtml = `
