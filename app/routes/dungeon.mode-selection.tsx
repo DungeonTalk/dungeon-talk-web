@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router'
-import { Button } from '../components/ui/button'
+import { Button } from '@/components/ui/button'
 
 export default function ModeSelectionPage() {
   const navigate = useNavigate()

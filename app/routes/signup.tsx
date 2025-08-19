@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { register as registerApi } from '@/http/memberControllerApi'
 import { login as loginApi } from '@/http/authControllerApi'
+import { ROUTES } from '@/constants/routes'
 
-export default function DungeonSignupPage() {
+export default function SignupPage() {
   const navigate = useNavigate()
   const [userId, setUserId] = useState('')
   const [password, setPassword] = useState('')
@@ -58,7 +59,7 @@ export default function DungeonSignupPage() {
           localStorage.setItem('dgt_logged_in', '1')
         }
       } catch {}
-      navigate('/dungeon')
+      navigate(ROUTES.DUNGEON)
     } catch (e: any) {
       const msg = e?.data?.msg || '회원가입에 실패했습니다.'
       setError(msg)
@@ -131,7 +132,7 @@ export default function DungeonSignupPage() {
               {error && <div className="text-xs text-red-400">{error}</div>}
               <Button className="w-full h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleSubmit} disabled={!canSubmit}>회원가입</Button>
               <div className="text-center text-xs text-slate-300 pt-1">
-                이미 계정이 있으신가요? <Link to=".." className="text-blue-400 hover:underline">로그인</Link>
+                이미 계정이 있으신가요? <Link to={ROUTES.SIGNIN} className="text-blue-400 hover:underline">로그인</Link>
               </div>
             </div>
           </CardContent>
@@ -140,5 +141,3 @@ export default function DungeonSignupPage() {
     </div>
   )
 }
-
-

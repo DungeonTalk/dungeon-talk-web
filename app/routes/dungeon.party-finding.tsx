@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
-import { Button } from '../components/ui/button'
-import { Card, CardContent } from '../components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { X } from 'lucide-react'
 import LoadingVideo from '@/components/loading-video'
 

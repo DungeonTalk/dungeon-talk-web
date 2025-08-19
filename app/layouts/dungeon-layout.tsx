@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router'
-import { Button } from '../components/ui/button'
+import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 
 export default function DungeonLayout() {
