@@ -1,4 +1,3 @@
-import { reactRouter } from "@react-router/dev/vite";
 // import { cloudflare } from "@cloudflare/vite-plugin"; // (삭제) Miniflare 오류 해결을 위해 주석 처리
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
@@ -8,7 +7,6 @@ export default defineConfig({
   plugins: [
     // cloudflare({ viteEnvironment: { name: "ssr" } }), // (삭제) Miniflare 오류 해결을 위해 주석 처리
     tailwindcss(),
-    reactRouter(),
     tsconfigPaths(),
   ],
   define: { 
