@@ -6,6 +6,7 @@ interface TokenData {
 
 interface UserData {
   id: string;
+  memberId?: string;  // 백엔드에서 사용하는 실제 회원 ID
   email: string;
   nickname?: string;
   [key: string]: any;

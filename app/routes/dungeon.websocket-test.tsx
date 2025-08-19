@@ -9,8 +9,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function WebSocketTestPage() {
   const { user } = useAuth();
-  const [roomId, setRoomId] = useState('test-room-001');
+  const [roomId, setRoomId] = useState('');
+  const [roomName, setRoomName] = useState('테스트 채팅방');
   const [message, setMessage] = useState('');
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   
   const {
@@ -46,13 +48,66 @@ export default function WebSocketTestPage() {
     }
   };
 
+  // 채팅방 생성
+  const handleCreateRoom = async () => {
+    if (!user) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+    
+    setIsCreatingRoom(true);
+    try {
+      const response = await fetch('http://localhost:8080/v1/chat/room', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('dgt_access_token')}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          roomName: roomName,
+          roomType: 'PLAYER',
+          mode: 'MULTI',
+          participantIds: [user.memberId || user.id]
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`방 생성 실패: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      const newRoomId = result.data?.id || result.id;
+      
+      if (newRoomId) {
+        setRoomId(newRoomId);
+        console.log('채팅방 생성 성공:', newRoomId);
+        
+        // 방 생성 후 자동으로 연결 및 입장
+        if (!isConnected) {
+          await connect(newRoomId);
+        }
+        await joinRoom(newRoomId);
+      }
+    } catch (err) {
+      console.error('채팅방 생성 실패:', err);
+      alert('채팅방 생성에 실패했습니다: ' + err);
+    } finally {
+      setIsCreatingRoom(false);
+    }
+  };
+  
   // 채팅방 입장
   const handleJoinRoom = async () => {
-    if (!roomId.trim()) return;
+    if (!roomId.trim()) {
+      alert('채팅방 ID를 입력하거나 새 방을 생성하세요.');
+      return;
+    }
     
     try {
       if (!isConnected) {
-        await connect();
+        await connect(roomId);
       }
       await joinRoom(roomId);
     } catch (err) {
@@ -66,6 +121,18 @@ export default function WebSocketTestPage() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+  
+  // 컴포넌트 마운트 시 사용자 정보 확인
+  useEffect(() => {
+    if (user) {
+      console.log('[WebSocketTest] 현재 사용자 정보:', {
+        id: user.id,
+        memberId: user.memberId,
+        email: user.email,
+        nickname: user.nickname
+      });
+    }
+  }, [user]);
 
   return (
     <div className="p-5">
@@ -95,7 +162,24 @@ export default function WebSocketTestPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm text-slate-300 mb-1 block">채팅방 ID</label>
+                  <label className="text-sm text-slate-300 mb-1 block">채팅방 이름</label>
+                  <Input 
+                    value={roomName}
+                    onChange={(e) => setRoomName(e.target.value)}
+                    placeholder="채팅방 이름"
+                    className="bg-black/20 border-white/10 text-white mb-2"
+                  />
+                  <Button 
+                    onClick={handleCreateRoom}
+                    disabled={isCreatingRoom}
+                    className="w-full bg-purple-600 hover:bg-purple-700 mb-2"
+                  >
+                    {isCreatingRoom ? '생성 중...' : '새 채팅방 생성'}
+                  </Button>
+                </div>
+                
+                <div>
+                  <label className="text-sm text-slate-300 mb-1 block">채팅방 ID (기존 방 입장)</label>
                   <Input 
                     value={roomId}
                     onChange={(e) => setRoomId(e.target.value)}
@@ -107,7 +191,7 @@ export default function WebSocketTestPage() {
                 <div className="space-y-2">
                   {!isConnected ? (
                     <Button 
-                      onClick={connect}
+                      onClick={() => connect(roomId)}
                       className="w-full bg-blue-600 hover:bg-blue-700"
                     >
                       WebSocket 연결
@@ -157,6 +241,8 @@ export default function WebSocketTestPage() {
                   <div className="text-xs text-slate-400">
                     <div>사용자: {user?.email || '익명'}</div>
                     <div>ID: {user?.id || 'N/A'}</div>
+                    <div>Member ID: {user?.memberId || 'N/A'}</div>
+                    <div>닉네임: {user?.nickname || 'N/A'}</div>
                   </div>
                 </div>
               </div>
@@ -176,34 +262,49 @@ export default function WebSocketTestPage() {
                       메시지가 없습니다.
                     </div>
                   ) : (
-                    messages.map((msg, index) => (
+                    messages.map((msg, index) => {
+                      // 서버에서 온 메시지의 senderId를 확인
+                      // 서버가 자동으로 senderId를 설정하므로, 닉네임으로 비교
+                      const currentUserNickname = user?.nickname || user?.email;
+                      const messageNickname = msg.senderNickname || msg.senderNickName;
+                      const isMine = currentUserNickname && messageNickname && 
+                                    currentUserNickname === messageNickname;
+                      
+                      console.log('[Chat] 메시지 비교:', {
+                        currentUserNickname,
+                        messageNickname,
+                        isMine,
+                        msg
+                      });
+                      
+                      return (
                       <div 
-                        key={msg.messageId || index}
+                        key={msg.messageId || (msg as any).id || index}
                         className={`p-3 rounded-lg ${
-                          msg.type === 'ENTER' || msg.type === 'LEAVE' 
+                          msg.type === 'JOIN' || msg.type === 'LEAVE' 
                             ? 'bg-yellow-900/30 text-center text-yellow-300 text-sm'
-                            : msg.type === 'SYSTEM'
+                            : msg.type === 'PRESENCE' || msg.type === 'CONNECTED_COUNT'
                             ? 'bg-blue-900/30 text-center text-blue-300 text-sm'
-                            : msg.memberId === user?.id
+                            : isMine
                             ? 'bg-blue-600/20 ml-auto max-w-[70%]'
                             : 'bg-purple-600/20 mr-auto max-w-[70%]'
                         }`}
                       >
                         {msg.type === 'TALK' && (
                           <div className="text-xs text-slate-400 mb-1">
-                            {msg.nickname || '익명'}
+                            {msg.senderNickname || msg.senderNickName || '익명'}
                           </div>
                         )}
                         <div className="text-white">
-                          {msg.message}
+                          {msg.content || msg.message || ''}
                         </div>
-                        {msg.timestamp && (
+                        {msg.createdAt && (
                           <div className="text-xs text-slate-500 mt-1">
-                            {new Date(msg.timestamp).toLocaleTimeString()}
+                            {new Date(msg.createdAt).toLocaleTimeString()}
                           </div>
                         )}
                       </div>
-                    ))
+                    );})
                   )}
                 </div>
               </ScrollArea>

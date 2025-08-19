@@ -3,13 +3,18 @@ import { websocketManager } from '@/lib/websocket-manager';
 
 export interface ChatMessage {
   messageId?: string;
+  id?: string;  // 서버에서 id로 올 수도 있음
   roomId: string;
-  memberId: string;
-  message: string;
-  nickname?: string;
-  type?: 'TALK' | 'ENTER' | 'LEAVE' | 'SYSTEM';
-  timestamp?: number;
-  createdAt?: string;
+  senderId: string;  // 백엔드 필드명
+  content: string;   // 백엔드 필드명
+  message?: string;  // 서버에서 message로 올 수도 있음
+  senderNickname?: string;  // 백엔드 필드명
+  senderNickName?: string;  // 대소문자 차이로 올 수도 있음
+  type?: 'TALK' | 'JOIN' | 'LEAVE' | 'CONNECTED_COUNT' | 'PRESENCE';
+  messageType?: string;  // 서버에서 messageType으로 올 수도 있음
+  createdAt?: string;  // ISO 8601 형식
+  connectedCount?: number;  // PRESENCE 타입일 때
+  members?: any[];  // PRESENCE 타입일 때
 }
 
 interface UseWebSocketOptions {
@@ -38,7 +43,7 @@ export const useWebSocket = (options?: UseWebSocketOptions) => {
   }, []);
 
   // WebSocket 연결
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (initialRoomId?: string) => {
     try {
       setError(null);
       
@@ -63,7 +68,7 @@ export const useWebSocket = (options?: UseWebSocketOptions) => {
         },
       });
 
-      await websocketManager.connect();
+      await websocketManager.connect(initialRoomId);
     } catch (err) {
       console.error('[useWebSocket] 연결 실패:', err);
       setError(err instanceof Error ? err.message : '연결 실패');
@@ -152,6 +157,11 @@ export const useWebSocket = (options?: UseWebSocketOptions) => {
 
   // 컴포넌트 마운트 시 자동 연결
   useEffect(() => {
+    // 클라이언트 사이드에서만 실행
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     if (options?.autoConnect) {
       connect();
     }

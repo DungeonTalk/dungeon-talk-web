@@ -7,21 +7,29 @@ import path from "path";
 
 export default defineConfig({
   plugins: [
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
     tailwindcss(),
     reactRouter(),
     tsconfigPaths(),
+    cloudflare({ viteEnvironment: { name: "ssr" } }),
   ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./app"),
     },
   },
+  define: {
+    global: 'globalThis',
+  },
   server: {
     port: 3000,
     proxy: {
       "/v1": {
         target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/ws-chat": {
+        target: "ws://localhost:8080",
+        ws: true,
         changeOrigin: true,
       },
     },

@@ -3,7 +3,9 @@ import { TokenManager } from '@/lib/token-manager';
 
 interface User {
   id: string;
+  memberId?: string;  // 백엔드에서 받는 실제 회원 ID
   email: string;
+  nickname?: string;
   [key: string]: any;
 }
 
